@@ -1,0 +1,30 @@
+# Program: Hello World w hex
+# Wypisuje "hello" używając portu ASCII (0xFF02)
+
+# Ustaw flagę Carry (SEC)
+38       # SEC
+
+# Załaduj 'h' (kod ASCII 104 = 0x68) do akumulatora
+A9 68    # LDA #0x68
+
+# Zapisz do portu ASCII (0xFF02)  
+8D 02 FF # STA $FF02
+
+# Załaduj 'e' (kod ASCII 101 = 0x65)
+A9 65    # LDA #0x65
+8D 02 FF # STA $FF02
+
+# Załaduj 'l' (kod ASCII 108 = 0x6C) 
+A9 6C    # LDA #0x6C
+8D 02 FF # STA $FF02
+
+# Załaduj 'l' (kod ASCII 108 = 0x6C) ponownie
+A9 6C    # LDA #0x6C
+8D 02 FF # STA $FF02
+
+# Załaduj 'o' (kod ASCII 111 = 0x6F)
+A9 6F    # LDA #0x6F
+8D 02 FF # STA $FF02
+
+# Zatrzymaj procesor
+00       # BRK

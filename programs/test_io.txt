@@ -1,0 +1,29 @@
+# Program: Test portów I/O
+# Demonstracja wyświetlania wyników przez procesor
+
+# Załaduj wartość do rejestru A
+A9 42    # LDA #0x42 (66 dziesiętnie)
+
+# Zapisz do portu I/O 0 (wyświetl jako dziesiętną)
+8D 00 FF # STA $FF00
+
+# Załaduj inną wartość
+A9 FF    # LDA #0xFF (255)
+
+# Zapisz do portu I/O 1 (wyświetl jako hex)  
+8D 01 FF # STA $FF01
+
+# Załaduj kod ASCII litery 'A' (65)
+A9 41    # LDA #0x41
+
+# Zapisz do portu I/O 2 (wyświetl jako znak)
+8D 02 FF # STA $FF02
+
+# Załaduj liczbę do wyświetlenia w binarnej
+A9 55    # LDA #0x55 (01010101 w binarnym)
+
+# Zapisz do portu I/O 3 (wyświetl jako binarną)
+8D 03 FF # STA $FF03
+
+# Zatrzymaj procesor
+00       # BRK

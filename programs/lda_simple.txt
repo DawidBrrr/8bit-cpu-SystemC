@@ -1,0 +1,9 @@
+# Program: LDA #0x42 + BRK
+# Ładuj wartość 0x42 do rejestru A i zatrzymaj
+
+A9 42 00
+
+# Komentarze:
+# A9    - LDA #imm (Load Accumulator Immediate)  
+# 42    - operand (0x42)
+# 00    - BRK (Break - zatrzymanie)
