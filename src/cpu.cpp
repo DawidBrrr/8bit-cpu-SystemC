@@ -1,6 +1,6 @@
 #include "cpu.h"
 
-// Funkcje pomocnicze dla określania typów adresowania 6502
+// Helper functions for addressing modes and instruction lengths
 cpu::addressing_mode_t cpu::get_addressing_mode(sc_uint<8> opcode) {
     switch (opcode) {
         // Immediate
@@ -43,8 +43,8 @@ cpu::addressing_mode_t cpu::get_addressing_mode(sc_uint<8> opcode) {
         // (Zero Page),Y
         case 0xB1: case 0x91: case 0x31: case 0x11: case 0x51: case 0x71: case 0xF1: case 0xD1:
             return INDIRECT_Y;
-            
-        // Implied (wszystkie inne)
+
+        // Implied (all others)
         default:
             return IMPLIED;
     }
@@ -66,8 +66,8 @@ bool cpu::needs_operand(sc_uint<8> opcode) {
 }
 
 bool cpu::is_store_instruction(sc_uint<8> opcode) {
-    // Instrukcje STA, STX, STY nie odczytują operanda z pamięci,
-    // tylko zapisują do pamięci pod obliczonym adresem
+    // Instructions STA, STX, STY do not read operand from memory,
+    // they only write to memory at the calculated address
     switch (opcode) {
         // STA variants
         case 0x85: case 0x95: case 0x8D: case 0x9D: case 0x99: case 0x81: case 0x91:
@@ -82,10 +82,10 @@ bool cpu::is_store_instruction(sc_uint<8> opcode) {
 }
 
 
-// Automat stanów fetch/execute
+// Automat fetch/execute
 void cpu::fetch_execute() {
-	// CPU kontroluje mem_we bezpośrednio
-	mem_we.write(false);  // Domyślnie brak zapisu do pamięci
+	// CPU controlls mem_we signal directly
+	mem_we.write(false);  // Default to no write
 	
 	if (reset.read()) {
 		state = FETCH;
@@ -100,26 +100,26 @@ void cpu::fetch_execute() {
 
 	switch (state) {
 		case FETCH:
-			// Ustaw adres instrukcji i poczekaj cykl
+			// Set instruction address and wait for cycle
 			mem_addr.write(pc_val);
 			state = WAIT_INSTRUCTION;
 			break;
 			
 		case WAIT_INSTRUCTION:
-			// Poczekaj jeden cykl na odczyt instrukcji z pamięci
+			// Wait for one cycle to read instruction from memory
 			state = DECODE;
 			break;
 			
 		case DECODE: {
-			// Pobierz instrukcję z pamięci
+			// Fetch instruction from memory
 			ir_val = mem_r_data.read();
 			ir.write(ir_val);
 			opcode.write(ir_val);
-			std::cout << "DECODE: Pobrano instrukcje 0x" << std::hex << (int)ir_val << " z adresu 0x" << (int)pc_val << std::endl;
-			
-			// Sprawdź instrukcję BRK (halt)
+			std::cout << "DECODE: Fetch instruction 0x" << std::hex << (int)ir_val << " from address 0x" << (int)pc_val << std::endl;
+
+			// Check BRK instruction (halt)
 			if (ir_val == 0x00) {
-				std::cout << "CPU: BRK - zatrzymanie symulacji" << std::endl;
+				std::cout << "CPU: BRK - simulation stopped" << std::endl;
 				sc_stop();
 				return;
 			}
@@ -128,12 +128,12 @@ void cpu::fetch_execute() {
 			
 			switch (mode) {
 				case IMPLIED:
-					// Instrukcje bez operandów (TAX, PHA, etc.)
+					// Instructions without operands (TAX, PHA, etc.)
 					state = EXECUTE;
 					break;
 					
 				case IMMEDIATE:
-					// Operand natychmiast po instrukcji
+					// Operand immediately after instruction
 					effective_addr = pc_val + 1;
 					mem_addr.write(effective_addr);
 					state = WAIT_OPERAND;
@@ -144,7 +144,7 @@ void cpu::fetch_execute() {
 				case ZERO_PAGE_Y:
 				case INDIRECT_X:
 				case INDIRECT_Y:
-					// 1 bajt adresu
+					// 1 byte address
 					mem_addr.write(pc_val + 1);
 					state = FETCH_ADDR_LOW;
 					break;
@@ -152,7 +152,7 @@ void cpu::fetch_execute() {
 				case ABSOLUTE:
 				case ABSOLUTE_X:
 				case ABSOLUTE_Y:
-					// 2 bajty adresu (LSB primeiro)
+					// 2 bytes address (LSB first)
 					//std::cout << "DECODE: ABSOLUTE addressing, przejscie do FETCH_ADDR_LOW" << std::endl;
 					mem_addr.write(pc_val + 1);
 					state = FETCH_ADDR_LOW;
@@ -166,44 +166,44 @@ void cpu::fetch_execute() {
 		}
 		
 		case WAIT_OPERAND:
-			// Poczekaj jeden cykl na operand immediate
+			// Wait for one cycle to read immediate operand
 			state = EXECUTE;
 			break;
 			
 		case FETCH_ADDR_LOW: {
-			// Poczekaj jeden cykl na dane z pamięci
+			// Wait for one cycle to read data from memory
 			state = PROCESS_ADDR_LOW;
 			break;
 		}
 			
 		case PROCESS_ADDR_LOW: {
-			// Pobierz pierwszy bajt adresu (LSB dla absolute, jedyny bajt dla zero page)
+			// Fetch first byte of address (LSB for absolute, only byte for zero page)
 			sc_uint<8> addr_low = mem_r_data.read();
 			addressing_mode_t mode = get_addressing_mode(ir_val);
-			//std::cout << "PROCESS_ADDR_LOW: Pobrano addr_low=0x" << std::hex << (int)addr_low << " mode=" << mode << std::endl;
-			
+			//std::cout << "PROCESS_ADDR_LOW: Fetched addr_low=0x" << std::hex << (int)addr_low << " mode=" << mode << std::endl;
+
 			if (mode == ABSOLUTE || mode == ABSOLUTE_X || mode == ABSOLUTE_Y) {
-				// Dla absolute potrzebujemy MSB
-				effective_addr = addr_low; // Tymczasowo zapisz LSB
+				// For absolute we need MSB
+				effective_addr = addr_low; // Temporarily store LSB
 				mem_addr.write(pc_val + 2);
 				state = FETCH_ADDR_HIGH;
 			} else {
-				// Zero page lub indirect - mamy już pełny adres
+				// Zero page or indirect - we already have full address
 				effective_addr = addr_low;
 				
 				if (mode == ZERO_PAGE_X) {
 					effective_addr = (effective_addr + regfile_i->r_data.read()) & 0xFF; // X register, wrap w zero page
 				} else if (mode == ZERO_PAGE_Y) {
-					// Pobierz Y register (trzeba będzie dodać logikę dla reg_src)
-					effective_addr = (effective_addr + 0) & 0xFF; // TODO: dodać Y register
+					// Fetch Y register (will need to add logic for reg_src)
+					effective_addr = (effective_addr + 0) & 0xFF; // TODO: add Y register
 				}
 				
 				if (mode == INDIRECT_X || mode == INDIRECT_Y) {
-					// Indirect adresowanie - jeszcze jeden odczyt potrzebny
+					// Indirect addressing - one more read needed
 					mem_addr.write(effective_addr);
-					state = FETCH_ADDR_HIGH; // Wykorzystamy do indirect
+					state = FETCH_ADDR_HIGH; // Will use for indirect
 				} else {
-					// Bezpośredni dostęp do operandu
+					// Direct access to operand
 					mem_addr.write(effective_addr);
 					state = WAIT_OPERAND;
 				}
@@ -212,7 +212,7 @@ void cpu::fetch_execute() {
 		}
 		
 		case FETCH_ADDR_HIGH: {
-			// Poczekaj jeden cykl na dane z pamięci
+			// Wait for one cycle to read data from memory
 			state = PROCESS_ADDR_HIGH;
 			break;
 		}
@@ -220,24 +220,24 @@ void cpu::fetch_execute() {
 		case PROCESS_ADDR_HIGH: {
 			sc_uint<8> addr_high = mem_r_data.read();
 			addressing_mode_t mode = get_addressing_mode(ir_val);
-			//std::cout << "PROCESS_ADDR_HIGH: Pobrano addr_high=0x" << std::hex << (int)addr_high << " mode=" << mode << std::endl;
+			//std::cout << "PROCESS_ADDR_HIGH: Fetched addr_high=0x" << std::hex << (int)addr_high << " mode=" << mode << std::endl;
 			
 			if (mode == ABSOLUTE || mode == ABSOLUTE_X || mode == ABSOLUTE_Y) {
-				// Złóż pełny 16-bitowy adres
+				// Assemble full 16-bit address
 				effective_addr = effective_addr | (addr_high << 8);
 				
-				// Dodaj indeks jeśli potrzeba
+				// Add index if needed
 				if (mode == ABSOLUTE_X) {
-					effective_addr += 0; // TODO: dodać X register
+					effective_addr += 0; // TODO: add X register
 				} else if (mode == ABSOLUTE_Y) {
-					effective_addr += 0; // TODO: dodać Y register  
+					effective_addr += 0; // TODO: add Y register  
 				}
 				
-				// Ustaw adres operandu
+				// Set memory address for operand fetch
 				mem_addr.write(effective_addr);
 				state = WAIT_OPERAND;
 			} else {
-				// Obsługa indirect (TODO)
+				// Indirect addressing (TODO)
 				state = EXECUTE;
 			}
 			break;
@@ -245,67 +245,67 @@ void cpu::fetch_execute() {
 		case EXECUTE: {
 			addressing_mode_t mode = get_addressing_mode(ir_val);
 			
-			// Pobierz operand jeśli potrzeba (nie dotyczy instrukcji STORE)
+			// Fetch operand if needed (does not apply to STORE instructions)
 			if (needs_operand(ir_val) && !is_store_instruction(ir_val)) {
 				if (mode == IMMEDIATE || mode == ZERO_PAGE || mode == ZERO_PAGE_X || mode == ZERO_PAGE_Y ||
 					mode == ABSOLUTE || mode == ABSOLUTE_X || mode == ABSOLUTE_Y) {
 					operand = mem_r_data.read();
-					std::cout << "EXECUTE: Pobrano operand 0x" << std::hex << (int)operand << " z adresu 0x" << (int)effective_addr << std::endl;
+					std::cout << "EXECUTE: Fetched operand 0x" << std::hex << (int)operand << " from address 0x" << (int)effective_addr << std::endl;
 				}
 			}
 			
-			// Wykonaj akcje na podstawie sygnałów z control_unit
+			// Execute actions based on control_unit signals
 			std::cout << "EXECUTE: reg_we=" << reg_we.read() << ", reg_w_addr=" << (int)reg_w_addr.read() << std::endl;
 			
-			// Przygotuj ALU jeśli potrzeba (przed zapisem do rejestru)
+			// Prepare ALU if needed (before writing to register)
 			if (alu_enable.read()) {
-				// UWAGA: nie możemy pisać do reg_r_addr - steruje nim control_unit
+				// NOTE: we cannot write to reg_r_addr - it is controlled by control_unit
 				bool carry_flag = alu_carry_in.read() != 0;
-				
-				// Ustaw parametry ALU
-				alu_a.write(reg_a_val);     // Użyj śledzonej wartości A
-				alu_b.write(operand);       // Operand z instrukcji
-				alu_carry_in.write(carry_flag ? 1 : 0);  // Użyj prawdziwej flagi Carry
-				
-				std::cout << "EXECUTE: Ustawiam ALU - A=0x" << std::hex << (int)reg_a_val 
+
+				// Set ALU parameters
+				alu_a.write(reg_a_val);     // Use tracked A value
+				alu_b.write(operand);       // Operand from instruction
+				alu_carry_in.write(carry_flag ? 1 : 0);  // Use true Carry flag
+
+				std::cout << "EXECUTE: Setting ALU - A=0x" << std::hex << (int)reg_a_val
 				          << " op=0x" << (int)alu_op.read() << " operand=0x" << (int)operand << std::endl;
-				
-				// Poczekaj cykl na obliczenie ALU
+
+				// Wait for one cycle to compute ALU
 				state = WAIT_ALU;
 				break;
 			}
 			
 			if (reg_we.read()) {
-				// Określ co zapisać do rejestru
+				// Determine what to write to register
 				sc_uint<8> data_to_write;
 				
 				if (alu_enable.read()) {
-					// Użyj wyniku ALU (dla ADC, AND, ORA, EOR, SBC, CMP)
+					// Use ALU result (for ADC, AND, ORA, EOR, SBC, CMP)
 					data_to_write = alu_result.read();
-					//std::cout << "EXECUTE: Uzywam wynik ALU = 0x" << std::hex << (int)data_to_write << std::endl;
+					//std::cout << "EXECUTE: Using ALU result = 0x" << std::hex << (int)data_to_write << std::endl;
 				} else {
-					// Użyj operandu bezpośrednio (dla LDA, LDX, LDY)
+					// Use operand directly (for LDA, LDX, LDY)
 					data_to_write = operand;
-					//std::cout << "EXECUTE: Uzywam operand = 0x" << std::hex << (int)data_to_write << std::endl;
+					//std::cout << "EXECUTE: Using operand = 0x" << std::hex << (int)data_to_write << std::endl;
 				}
 				
 				reg_w_data.write(data_to_write);
-				std::cout << "EXECUTE: Zapisuje 0x" << std::hex << (int)data_to_write << " do rejestru " << (int)reg_w_addr.read() << std::endl;
-				
-				// Aktualizuj śledzoną wartość rejestru A
+				std::cout << "EXECUTE: Writing 0x" << std::hex << (int)data_to_write << " to register " << (int)reg_w_addr.read() << std::endl;
+
+				// Update tracked A register value
 				if (reg_w_addr.read() == 0) {
 					reg_a_val = data_to_write;
 				}
 			}
 			
-			// Obsłuż zapis do pamięci (dla instrukcji STORE)
+			// Handle memory write (for STORE instructions)
 			if (is_store_instruction(ir_val)) {
-				// CPU kontroluje mem_we dla instrukcji STORE
-				sc_uint<8> data_to_store = reg_r_data.read(); // reg_r_addr już jest ustawiony przez control_unit
-				
-				mem_we.write(true);       // CPU włącza zapis do pamięci
+				// CPU controls mem_we for STORE instructions
+				sc_uint<8> data_to_store = reg_r_data.read(); // reg_r_addr is already set by control_unit
+
+				mem_we.write(true);       // CPU enables memory write
 				mem_w_data.write(data_to_store);
-				std::cout << "EXECUTE: STORE - Zapisuje 0x" << std::hex << (int)data_to_store << " do adresu 0x" << (int)effective_addr << std::endl;
+				std::cout << "EXECUTE: STORE - Writing 0x" << std::hex << (int)data_to_store << " to address 0x" << (int)effective_addr << std::endl;
 			}
 			
 			// Update PC
@@ -316,24 +316,24 @@ void cpu::fetch_execute() {
 				pc_val = pc_val + instr_length;
 			}
 			pc.write(pc_val);
-			//std::cout << "EXECUTE: Nowy PC = 0x" << std::hex << (int)pc_val << std::endl;
+			//std::cout << "EXECUTE: New PC = 0x" << std::hex << (int)pc_val << std::endl;
 			
 			state = FETCH;
 			break;
 		}
 		
 		case WAIT_ALU: {
-			// ALU ma już poprawne parametry, możemy odczytać wynik
-			//std::cout << "WAIT_ALU: ALU wynik=0x" << std::hex << (int)alu_result.read() << std::endl;
-			
+			// ALU has correct parameters, we can read the result
+			//std::cout << "WAIT_ALU: ALU result=0x" << std::hex << (int)alu_result.read() << std::endl;
+
 			if (reg_we.read()) {
 				sc_uint<8> data_to_write = alu_result.read();
-				//std::cout << "WAIT_ALU: Uzywam wynik ALU = 0x" << std::hex << (int)data_to_write << std::endl;
-				
+				//std::cout << "WAIT_ALU: Using ALU result = 0x" << std::hex << (int)data_to_write << std::endl;
+
 				reg_w_data.write(data_to_write);
-				//std::cout << "WAIT_ALU: Zapisuje 0x" << std::hex << (int)data_to_write << " do rejestru " << (int)reg_w_addr.read() << std::endl;
-				
-				// Aktualizuj śledzoną wartość rejestru A
+				//std::cout << "WAIT_ALU: Writing 0x" << std::hex << (int)data_to_write << " to register " << (int)reg_w_addr.read() << std::endl;
+
+				// Update tracked A register value
 				if (reg_w_addr.read() == 0) {
 					reg_a_val = data_to_write;
 				}
@@ -347,7 +347,7 @@ void cpu::fetch_execute() {
 				pc_val = pc_val + instr_length;
 			}
 			pc.write(pc_val);
-			//std::cout << "WAIT_ALU: Nowy PC = 0x" << std::hex << (int)pc_val << std::endl;
+			//std::cout << "WAIT_ALU: New PC = 0x" << std::hex << (int)pc_val << std::endl;
 			
 			state = FETCH;
 			break;
@@ -358,13 +358,13 @@ void cpu::fetch_execute() {
 SC_HAS_PROCESS(cpu);
 
 cpu::cpu(sc_module_name name) : sc_module(name) {
-	// Tworzenie instancji podmodułów
+	// Creating submodule instances
 	alu_i = new alu("alu_i");
 	regfile_i = new regfile("regfile_i");
 	memory_i = new memory("memory_i");
 	control_unit_i = new control_unit("control_unit_i");
 
-	// --- Połączenia ALU ---
+	// --- ALU connections ---
 	alu_i->a(alu_a);
 	alu_i->b(alu_b);
 	alu_i->carry_in(alu_carry_in);
@@ -375,7 +375,7 @@ cpu::cpu(sc_module_name name) : sc_module(name) {
 	alu_i->negative(alu_negative);
 	alu_i->overflow(alu_overflow);
 
-	// --- Połączenia regfile ---
+	// --- Register file connections ---
 	regfile_i->clk(clk);
 	regfile_i->we(reg_we);
 	regfile_i->w_addr(reg_w_addr);
@@ -385,8 +385,8 @@ cpu::cpu(sc_module_name name) : sc_module(name) {
 	regfile_i->set_flags(set_flags);
 	regfile_i->zero(alu_zero);
 	regfile_i->negative(alu_negative);
-	
-	// --- Połączenia sygnałów kontroli flag ---
+
+	// --- Flag control signal connections ---
 	regfile_i->set_carry(set_carry);
 	regfile_i->clear_carry(clear_carry);
 	regfile_i->set_interrupt(set_interrupt);
@@ -395,14 +395,14 @@ cpu::cpu(sc_module_name name) : sc_module(name) {
 	regfile_i->clear_decimal(clear_decimal);
 	regfile_i->clear_overflow(clear_overflow);
 
-	// --- Połączenia memory ---
+	// --- Memory connections ---
 	memory_i->clk(clk);
 	memory_i->we(mem_we);
 	memory_i->addr(mem_addr);
 	memory_i->w_data(mem_w_data);
 	memory_i->r_data(mem_r_data);
 
-	// --- Połączenia control_unit ---
+	// --- Control unit connections ---
 	control_unit_i->clk(clk);
 	control_unit_i->opcode(opcode);
 	control_unit_i->alu_op(alu_op);
@@ -411,8 +411,8 @@ cpu::cpu(sc_module_name name) : sc_module(name) {
 	control_unit_i->reg_we(reg_we);
 	control_unit_i->reg_sel(reg_w_addr);
 	control_unit_i->reg_src(reg_r_addr);
-	// UWAGA: mem_we będzie kontrolowany przez CPU, nie control_unit
-	control_unit_i->mem_we(control_unit_mem_we); // Połącz do nieużywanego sygnału
+	// NOTE: mem_we will be controlled by CPU, not control_unit
+	control_unit_i->mem_we(control_unit_mem_we); // Connect to unused signal
 	control_unit_i->mem_oe(mem_oe);
 	control_unit_i->pc_inc(pc_inc);
 	control_unit_i->pc_load(pc_load);
@@ -420,8 +420,8 @@ cpu::cpu(sc_module_name name) : sc_module(name) {
 	control_unit_i->halt(halt);
 	control_unit_i->irq_ack(irq_ack);
 	control_unit_i->nmi_ack(nmi_ack);
-	
-	// --- Połączenia sygnałów kontroli flag ---
+
+	// --- Flag control signal connections ---
 	control_unit_i->set_carry(set_carry);
 	control_unit_i->clear_carry(clear_carry);
 	control_unit_i->set_interrupt(set_interrupt);

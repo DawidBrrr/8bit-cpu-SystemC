@@ -7,17 +7,17 @@
 using namespace std;
 
 
-// Pamięć RAM 64KB (16-bitowa przestrzeń adresowa) jak w 6502
+// 64KB RAM memory module with memory mapped I/O ports
 SC_MODULE(memory) {
     sc_in<bool> clk;
     sc_in<bool> we; // write enable
-    sc_in<sc_uint<16>> addr; // adres 16-bitowy
-    sc_in<sc_uint<8>> w_data; // dane do zapisu
-    sc_out<sc_uint<8>> r_data; // dane odczytane
+    sc_in<sc_uint<16>> addr; // 16 bit address bus
+    sc_in<sc_uint<8>> w_data; // write data bus
+    sc_out<sc_uint<8>> r_data; // read data bus
 
-    sc_uint<8> mem[65536]; // 64KB pamięci
+    sc_uint<8> mem[65536]; // 64KB memory array
     
-    // Osobny plik dla portów I/O
+    // Static members for I/O file handling
     static ofstream io_output;
     static bool io_file_opened;
 
@@ -26,15 +26,15 @@ SC_MODULE(memory) {
             sc_uint<16> address = addr.read();
             sc_uint<8> data = w_data.read();
             
-            // Sprawdź czy to zapis do specjalnych adresów I/O
+            // Check if its saving to I/O port range
             if (address == 0xFF00) {
-                // I/O PORT 0: Wyświetl wartość jako liczbę dziesiętną
+                // I/O PORT 0: Display value as decimal
                 string output = "PORT 0 (DEC): " + to_string((int)data);
                 cout << "*** OUTPUT " << output << " ***" << endl;
                 write_to_io_file(to_string((int)data));
             }
             else if (address == 0xFF01) {
-                // I/O PORT 1: Wyświetl wartość jako hex
+                // I/O PORT 1: Display value as hex
                 char hex_str[20];
                 char hex_strw[20];
                 sprintf(hex_str, "PORT 1 (HEX): 0x%02x", (int)data);
@@ -44,13 +44,13 @@ SC_MODULE(memory) {
                 write_to_io_file(string(hex_strw));
             }
             else if (address == 0xFF02) {
-                // I/O PORT 2: Wyświetl jako znak ASCII
+                // I/O PORT 2: Display value as ASCII character
                 string output = "PORT 2 (CHR): '" + string(1, (char)data) + "'";
                 cout << "*** OUTPUT " << output << " ***" << endl;
                 write_to_io_file(string(1, (char)data));
             }
             else if (address == 0xFF03) {
-                // I/O PORT 3: Wyświetl jako liczbę binarną
+                // I/O PORT 3: Display value as binary
                 string binary = "";
                 for (int i = 7; i >= 0; i--) {
                     binary += ((data >> i) & 1) ? "1" : "0";
@@ -60,13 +60,13 @@ SC_MODULE(memory) {
                 write_to_io_file(binary);
             }
             else {
-                // Normalny zapis do pamięci
+                // Normal write to memory
                 mem[address] = data;
                 cout << "MEMORY WRITE: addr=0x" << hex << address 
                      << " data=0x" << data << dec << endl;
             }
         } else {
-            // Odczyt z pamięci (tylko gdy nie zapisujemy)
+            // Read from memory (only when not writing)
             r_data.write(mem[addr.read()]);
             cout << "MEMORY READ: addr=0x" << hex << addr.read() 
                  << " data=0x" << mem[addr.read()] << dec << endl;
@@ -78,18 +78,18 @@ SC_MODULE(memory) {
             io_output.open("../output/io_output.txt", ios::out);
             io_file_opened = true;
             if (io_output.is_open()) {
-                io_output << "=== CPU 6502 - Output Ports Log ===" << endl;
+                io_output << "=== CPU - Output Ports Log ===" << endl;
                 io_output << "Format: [TIME] PORT_MESSAGE" << endl;
                 io_output << "=====================================" << endl;
             }
         }
         
         if (io_output.is_open()) {
-            // Dodaj timestamp (uproszczony)
+            // Add timestamp (simplified for debugging)
             static int counter = 0;
             //io_output << "[" << setfill('0') << setw(4) << ++counter << "] " << output << endl;
             io_output << output;
-            io_output.flush(); // Natychmiastowy zapis
+            io_output.flush(); // Immediate write
         }
         
     }

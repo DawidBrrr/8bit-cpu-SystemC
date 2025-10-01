@@ -1,12 +1,12 @@
-# Program: Dodanie dwóch liczb
+# Program: Adds two numbers
 # Oblicza: 0x25 + 0x17 = 0x3C
-# Wynik w rejestrze A
+# Output in register A
 
-# Załaduj pierwszą liczbę
+# LDA load first number
 A9 25
 
-# Odejmij drugą liczbę (SBC #0x25)
+# Subtrack(yes unexpected) (SBC #0x25)
 E9 17
 
-# Zatrzymaj program
+# halt program
 00

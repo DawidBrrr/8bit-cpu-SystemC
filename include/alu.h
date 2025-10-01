@@ -7,8 +7,8 @@
 SC_MODULE(alu) {
     sc_in<sc_uint<8>> a;
     sc_in<sc_uint<8>> b;
-    sc_in<sc_uint<8>> carry_in; // wejście carry (np. z rejestru statusu)
-    sc_in<sc_uint<4>> op; // kod operacji 4 bity
+    sc_in<sc_uint<8>> carry_in; // carry flag input
+    sc_in<sc_uint<4>> op; // operation code 4 bits
     sc_out<sc_uint<8>> result;
     sc_out<bool> carry;
     sc_out<bool> zero;

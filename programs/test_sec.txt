@@ -1,15 +1,15 @@
-# Program: Test instrukcji SEC
-# Test ustawiania flagi Carry
+# Program: Test instruction SEC
+# Test set carry flag
 
-# Wyczyść flagę Carry
+# Clear carry flag
 18
 
-# Ustaw flagę Carry  
+# Set carry flag
 38
 
-# Test SBC z ustawioną flagą Carry (25 - 25 - 0 = 0)
+# Test SBC with carry flag (25 - 25 - 0 = 0)
 A9 25    # LDA #0x25
 E9 25    # SBC #0x25
 
-# BRK - zatrzymaj
+# BRK - stop
 00

@@ -1,2 +1,2 @@
 #include "control_unit.h"
-// Implementacja jest w nagłówku (SC_METHOD)
+// Implementation is in the header (SC_METHOD)
