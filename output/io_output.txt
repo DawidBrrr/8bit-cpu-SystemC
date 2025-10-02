@@ -1,4 +1,4 @@
-=== CPU 6502 - Output Ports Log ===
+=== CPU - Output Ports Log ===
 Format: [TIME] PORT_MESSAGE
 =====================================
 hello

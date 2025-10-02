@@ -26,10 +26,20 @@ target_link_libraries(cpu PRIVATE systemc)
 
 # Testy jednostkowe
 enable_testing()
+
+# Collect CPU source files (excluding main.cpp for tests)
+file(GLOB CPU_SRC_FILES 
+    src/alu.cpp 
+    src/control_unit.cpp 
+    src/cpu.cpp 
+    src/memory.cpp 
+    src/regfile.cpp
+)
+
 file(GLOB TEST_FILES tests/*.cpp)
 foreach(test_src ${TEST_FILES})
     get_filename_component(test_name ${test_src} NAME_WE)
-    add_executable(${test_name} ${test_src})
+    add_executable(${test_name} ${test_src} ${CPU_SRC_FILES})
     target_link_libraries(${test_name} PRIVATE systemc)
     add_test(NAME ${test_name} COMMAND ${test_name})
 endforeach()

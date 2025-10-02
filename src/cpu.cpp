@@ -120,7 +120,7 @@ void cpu::fetch_execute() {
 			// Check BRK instruction (halt)
 			if (ir_val == 0x00) {
 				std::cout << "CPU: BRK - simulation stopped" << std::endl;
-				sc_stop();
+				//sc_stop(); //comment for running cpu_tb tests
 				return;
 			}
 			
