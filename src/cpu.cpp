@@ -263,11 +263,17 @@ void cpu::fetch_execute() {
 				bool carry_flag = alu_carry_in.read() != 0;
 
 				// Set ALU parameters
-				alu_a.write(reg_a_val);     // Use tracked A value
-				alu_b.write(operand);       // Operand from instruction
+				// For MOV operations (LDA/LDX/LDY), pass operand through ALU input 'a'
+				if (alu_op.read() == 0xB) {
+					alu_a.write(operand);       // For MOV: pass operand through 'a' input
+					alu_b.write(0);             // 'b' is unused for MOV
+				} else {
+					alu_a.write(reg_a_val);     // For arithmetic/logic ops: use current A value
+					alu_b.write(operand);       // Operand from instruction
+				}
 				alu_carry_in.write(carry_flag ? 1 : 0);  // Use true Carry flag
 
-				std::cout << "EXECUTE: Setting ALU - A=0x" << std::hex << (int)reg_a_val
+				std::cout << "EXECUTE: Setting ALU - A=0x" << std::hex << (int)alu_a.read()
 				          << " op=0x" << (int)alu_op.read() << " operand=0x" << (int)operand << std::endl;
 
 				// Wait for one cycle to compute ALU
