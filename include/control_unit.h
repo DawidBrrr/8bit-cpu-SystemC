@@ -60,7 +60,7 @@ SC_MODULE(control_unit) {
                 Addressing mode: immediate
             */
                 alu_op.write(0xB);      // MOV (pass operand -> A)
-                alu_enable.write(false); // disable ALU
+                alu_enable.write(true); // disable ALU
                 reg_sel.write(0);       // select register A
                 reg_we.write(true);     // write to register
                 set_flags.write(true);  // set Z and N flags
@@ -75,7 +75,7 @@ SC_MODULE(control_unit) {
                 Addressing mode: zero page
             */
                 alu_op.write(0xB);      // MOV (pass operand -> A)
-                alu_enable.write(false); // disable ALU
+                alu_enable.write(true); // disable ALU
                 reg_sel.write(0);       // select register A
                 reg_we.write(true);     // write to register
                 set_flags.write(true);  // set Z and N flags
@@ -90,7 +90,7 @@ SC_MODULE(control_unit) {
                 Addressing mode: zero page,X
                 */
                 alu_op.write(0xB);      // MOV (pass operand -> A)
-                alu_enable.write(false); // disable ALU
+                alu_enable.write(true); // disable ALU
                 reg_sel.write(0);       // select register A
                 reg_we.write(true);     // write to register
                 set_flags.write(true);  // set Z and N flags
@@ -105,7 +105,7 @@ SC_MODULE(control_unit) {
                 Addressing mode: absolute
             */
                 alu_op.write(0xB);      // MOV (pass operand -> A)
-                alu_enable.write(false); // disable ALU
+                alu_enable.write(true); // disable ALU
                 reg_sel.write(0);       // select register A
                 reg_we.write(true);     // write to register
                 set_flags.write(true);  // set Z and N flags
@@ -120,7 +120,7 @@ SC_MODULE(control_unit) {
                 Addressing mode: absolute,X
             */
                 alu_op.write(0xB);      // MOV (pass operand -> A)
-                alu_enable.write(false); // disable ALU
+                alu_enable.write(true); // disable ALU
                 reg_sel.write(0);       // select register A
                 reg_we.write(true);     // write to register
                 set_flags.write(true);  // set Z and N flags
@@ -135,7 +135,7 @@ SC_MODULE(control_unit) {
                 Addressing mode: absolute,Y
             */
                 alu_op.write(0xB);      // MOV (pass operand -> A)
-                alu_enable.write(false); // disable ALU
+                alu_enable.write(true); // disable ALU
                 reg_sel.write(0);       // select register A
                 reg_we.write(true);     // write to register
                 set_flags.write(true);  // set Z and N flags
@@ -150,7 +150,7 @@ SC_MODULE(control_unit) {
                 Addressing mode: (indirect,X)
             */
                 alu_op.write(0xB);      // MOV (pass operand -> A)
-                alu_enable.write(false); // disable ALU
+                alu_enable.write(true); // disable ALU
                 reg_sel.write(0);       // select register A
                 reg_we.write(true);     // write to register
                 set_flags.write(true);  // set Z and N flags
@@ -165,7 +165,7 @@ SC_MODULE(control_unit) {
                 Addressing mode: (indirect),Y
             */
                 alu_op.write(0xB);      // MOV (pass operand -> A)
-                alu_enable.write(false); // disable ALU
+                alu_enable.write(true); // disable ALU
                 reg_sel.write(0);       // select register A
                 reg_we.write(true);     // write to register
                 set_flags.write(true);  // set Z and N flags
@@ -181,7 +181,7 @@ SC_MODULE(control_unit) {
                 Addressing mode: immediate
             */
                 alu_op.write(0xB);      // MOV (pass operand -> X)
-                alu_enable.write(false); // disable ALU
+                alu_enable.write(true); // disable ALU
                 reg_sel.write(1);       // select register X
                 reg_we.write(true);     // write to register
                 set_flags.write(true);  // set Z and N flags
@@ -196,7 +196,7 @@ SC_MODULE(control_unit) {
                 Addressing mode: zero page
             */
                 alu_op.write(0xB);      // MOV (pass operand -> X)
-                alu_enable.write(false); // disable ALU
+                alu_enable.write(true); // disable ALU
                 reg_sel.write(1);       // select register X
                 reg_we.write(true);     // write to register
                 set_flags.write(true);  // set Z and N flags
@@ -211,7 +211,7 @@ SC_MODULE(control_unit) {
                 Addressing mode: zero page,Y
             */
                 alu_op.write(0xB);      // MOV (pass operand -> X)
-                alu_enable.write(false); // disable ALU
+                alu_enable.write(true); // disable ALU
                 reg_sel.write(1);       // select register X
                 reg_we.write(true);     // write to register
                 set_flags.write(true);  // set Z and N flags
@@ -226,7 +226,7 @@ SC_MODULE(control_unit) {
                 Addressing mode: absolute
             */
                 alu_op.write(0xB);      // MOV (pass operand -> X)
-                alu_enable.write(false); // disable ALU
+                alu_enable.write(true); // disable ALU
                 reg_sel.write(1);       // select register X
                 reg_we.write(true);     // write to register
                 set_flags.write(true);  // set Z and N flags
@@ -241,7 +241,7 @@ SC_MODULE(control_unit) {
                 Addressing mode: absolute,Y
             */
                 alu_op.write(0xB);      // MOV (pass operand -> X)
-                alu_enable.write(false); // disable ALU
+                alu_enable.write(true); // disable ALU
                 reg_sel.write(1);       // select register X
                 reg_we.write(true);     // write to register
                 set_flags.write(true);  // set Z and N flags
@@ -257,7 +257,7 @@ SC_MODULE(control_unit) {
                 Addressing mode: immediate
             */
                 alu_op.write(0xB);      // MOV (pass operand -> Y)
-                alu_enable.write(false); // disable ALU
+                alu_enable.write(true); // disable ALU
                 reg_sel.write(2);       // select register Y
                 reg_we.write(true);     // write to register
                 set_flags.write(true);  // set Z and N flags
@@ -272,7 +272,7 @@ SC_MODULE(control_unit) {
                 Addressing mode: zero page
             */
                 alu_op.write(0xB);      // MOV (pass operand -> Y)
-                alu_enable.write(false); // disable ALU
+                alu_enable.write(true); // disable ALU
                 reg_sel.write(2);       // select register Y
                 reg_we.write(true);     // write to register
                 set_flags.write(true);  // set Z and N flags
@@ -287,7 +287,7 @@ SC_MODULE(control_unit) {
                 Addressing mode: zero page,X
             */
                 alu_op.write(0xB);      // MOV (pass operand -> Y)
-                alu_enable.write(false); // disable ALU
+                alu_enable.write(true); // disable ALU
                 reg_sel.write(2);       // select register Y
                 reg_we.write(true);     // write to register
                 set_flags.write(true);  // set Z and N flags
@@ -302,7 +302,7 @@ SC_MODULE(control_unit) {
                 Addressing mode: absolute
             */
                 alu_op.write(0xB);      // MOV (pass operand -> Y)
-                alu_enable.write(false); // disable ALU
+                alu_enable.write(true); // disable ALU
                 reg_sel.write(2);       // select register Y
                 reg_we.write(true);     // write to register
                 set_flags.write(true);  // set Z and N flags
@@ -317,7 +317,7 @@ SC_MODULE(control_unit) {
                 Addressing mode: absolute,X
             */
                 alu_op.write(0xB);      // MOV (pass operand -> Y)
-                alu_enable.write(false); // disable ALU
+                alu_enable.write(true); // disable ALU
                 reg_sel.write(2);       // select register Y
                 reg_we.write(true);     // write to register
                 set_flags.write(true);  // set Z and N flags
