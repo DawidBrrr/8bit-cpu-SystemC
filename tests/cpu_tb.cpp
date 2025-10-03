@@ -206,6 +206,58 @@ SC_MODULE(cpu_tb) {
         check_result("LDA #0x80 (Negative Flag)", test_passed);
     }
 
+    // Test LDX immediate (0xA2)
+    void test_ldx_immediate() {
+        std::cout << "\n=== Testing LDX Immediate (0xA2) ===" << std::endl;
+
+        // Clear memory
+        for (int i = 0; i < 100; ++i) {
+            cpu_i->memory_i->mem[i] = 0x00;
+        }
+        // Load instruction: LDX #0x33
+        uint8_t program[] = {0xA2, 0x33, 0x00};  // LDX #0x33, BRK
+        load_instruction(0x0000, program, 3);
+
+        // Reset and run
+        reset_cpu();
+        run_cycles(10);  
+
+        // Check results
+        uint8_t reg_x = cpu_i->regfile_i->X;
+        bool test_passed = (reg_x == 0x33);
+
+        std::cout << "Expected X: 0x33, Got X: 0x" << std::hex << std::setw(2) << std::setfill('0') 
+                  << (int)reg_x << std::endl;
+        
+        check_result("LDX #0x33", test_passed);
+    }
+
+    // Test LDY immediate (0xA0)
+    void test_ldy_immediate() {
+        std::cout << "\n=== Testing LDY Immediate (0xA0) ===" << std::endl;
+
+        // Clear memory
+        for (int i = 0; i < 100; ++i) {
+            cpu_i->memory_i->mem[i] = 0x00;
+        }
+        // Load instruction: LDY #0x44
+        uint8_t program[] = {0xA0, 0x44, 0x00};  // LDY #0x44, BRK
+        load_instruction(0x0000, program, 3);
+
+        // Reset and run
+        reset_cpu();
+        run_cycles(10);  
+
+        // Check results
+        uint8_t reg_y = cpu_i->regfile_i->Y;
+        bool test_passed = (reg_y == 0x44);
+
+        std::cout << "Expected Y: 0x44, Got Y: 0x" << std::hex << std::setw(2) << std::setfill('0') 
+                  << (int)reg_y << std::endl;
+        
+        check_result("LDY #0x44", test_passed);
+    }
+
     // Main test runner
     void run_tests() {
         std::cout << "\n========================================" << std::endl;
@@ -218,13 +270,10 @@ SC_MODULE(cpu_tb) {
         test_lda_absolute();
         test_lda_zero_flag();
         test_lda_negative_flag();
+        test_ldx_immediate();
+        test_ldy_immediate();
 
-        // TODO: Add more instruction tests here
-        // test_ldx_immediate();
-        // test_ldy_immediate();
-        // test_sta_zeropage();
-        // test_adc_immediate();
-        // etc...
+        
 
         // Print summary
         std::cout << "\n========================================" << std::endl;
