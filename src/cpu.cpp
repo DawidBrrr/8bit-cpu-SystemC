@@ -192,16 +192,23 @@ void cpu::fetch_execute() {
 				effective_addr = addr_low;
 				
 				if (mode == ZERO_PAGE_X) {
-					effective_addr = (effective_addr + regfile_i->r_data.read()) & 0xFF; // X register, wrap w zero page
+					effective_addr = (effective_addr + regfile_i->X) & 0xFF; // X register, wrap w zero page
 				} else if (mode == ZERO_PAGE_Y) {
 					// Fetch Y register (will need to add logic for reg_src)
-					effective_addr = (effective_addr + 0) & 0xFF; // TODO: add Y register
+					effective_addr = (effective_addr + regfile_i->Y) & 0xFF; // TODO: add Y register
 				}
-				
-				if (mode == INDIRECT_X || mode == INDIRECT_Y) {
-					// Indirect addressing - one more read needed
-					mem_addr.write(effective_addr);
-					state = FETCH_ADDR_HIGH; // Will use for indirect
+				if(mode == INDIRECT_X){
+					// add X to zero page address first
+					effective_addr = (addr_low + regfile_i->X) & 0xFF; // X register, wrap w zero page
+					// read the 16 bit pointer from this address
+					mem_addr.write(effective_addr); // Read LSB of effective address
+					state = FETCH_ADDR_HIGH; // Will fetch low byte of pointer next
+				}
+				else if(mode == INDIRECT_Y){
+					// For INDIRECT_Y first read pointer then add Y
+					effective_addr = addr_low; // use zero page address
+					mem_addr.write(effective_addr); // Read LSB of effective address
+					state = FETCH_ADDR_HIGH; // Will fetch pointer next
 				} else {
 					// Direct access to operand
 					mem_addr.write(effective_addr);
@@ -228,18 +235,60 @@ void cpu::fetch_execute() {
 				
 				// Add index if needed
 				if (mode == ABSOLUTE_X) {
-					effective_addr += 0; // TODO: add X register
+					effective_addr += regfile_i->X;
 				} else if (mode == ABSOLUTE_Y) {
-					effective_addr += 0; // TODO: add Y register  
+					effective_addr += regfile_i->Y;
 				}
 				
 				// Set memory address for operand fetch
 				mem_addr.write(effective_addr);
 				state = WAIT_OPERAND;
+			} else if(mode == INDIRECT_X){
+				// For(ind,X) read low byte of pointer, now get the high byte
+				sc_uint<8> ptr_low = addr_high; // low byte from previous read
+				//Read high byte from next zero page address
+				mem_addr.write((effective_addr + 1) & 0xFF); // wrap in zero page
+				// Store low byte temporarily in effective_addr
+				effective_addr = ptr_low; 
+				state = FETCH_INDIRECT_HIGH; 
+			} else if(mode == INDIRECT_Y){
+				// For(ind), Y read low byte of pointer, now get the high byte
+				sc_uint<8> ptr_low = addr_high; // low byte from previous read
+				//Read high byte from next zero page address
+				mem_addr.write((effective_addr + 1) & 0xFF); // wrap in zero page
+				//Store ptr_low temporarily in effective_addr
+				effective_addr = ptr_low;
+				state = FETCH_INDIRECT_HIGH;
 			} else {
-				// Indirect addressing (TODO)
+				// Should not happen
 				state = EXECUTE;
 			}
+			break;
+		}
+		case FETCH_INDIRECT_HIGH: {
+			// Wait one cycle to read high byte of pointer
+			state = PROCESS_INDIRECT_HIGH;
+			break;
+		}
+		case PROCESS_INDIRECT_HIGH: {
+			// Read high byte of indirect pointer
+			sc_uint<8> ptr_high = mem_r_data.read();
+			sc_uint<8> ptr_low = effective_addr; // low byte stored previously
+
+			// Assemble full pointer address
+			effective_addr = ptr_low | (ptr_high << 8); 
+
+			addressing_mode_t mode = get_addressing_mode(ir_val);
+
+			//For INDIRECT Y add Y register to pointer
+			if(mode == INDIRECT_Y){
+				effective_addr += regfile_i->Y;
+			}
+			// For INDIRECT X register was added before reading pointer
+
+			// Set memory address
+			mem_addr.write(effective_addr);
+			state = WAIT_OPERAND;
 			break;
 		}
 		case EXECUTE: {

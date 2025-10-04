@@ -258,6 +258,171 @@ SC_MODULE(cpu_tb) {
         check_result("LDY #0x44", test_passed);
     }
 
+    // Test STA zero page (0x85)
+    void test_sta_zp(){
+        std::cout << "\n=== Testing STA Zero Page (0x85) ===" << std::endl;
+
+        // Clear memory
+        for (int i = 0; i < 100; ++i) {
+            cpu_i->memory_i->mem[i] = 0x00;
+        }
+
+        // Load instruction: LDA #0x99; STA $20
+        uint8_t program[] = {0xA9, 0x99, 0x85, 0x20, 0x00};  // LDA #0x99, STA $20, BRK
+        load_instruction(0x0000, program, 5);
+
+        // Reset and run
+        reset_cpu();
+        run_cycles(15);  
+
+        // Check results
+        uint8_t mem_val = cpu_i->memory_i->mem[0x20];
+        bool test_passed = (mem_val == 0x99);
+
+        std::cout << "Expected Mem[0x20]: 0x99, Got Mem[0x20]: 0x" << std::hex << std::setw(2) << std::setfill('0') 
+                  << (int)mem_val << std::endl;
+        
+        check_result("STA $20", test_passed);
+    }
+
+    // Test STA zp,X (0x95)
+    void test_sta_zp_x(){
+        std::cout << "\n=== Testing STA Zero Page,X (0x95) ===" << std::endl;
+
+        // Clear memory
+        for (int i = 0; i < 100; ++i) {
+            cpu_i->memory_i->mem[i] = 0x00;
+        }
+
+        // Load instruction: LDX #0x05; LDA #0x88; STA $20,X
+        uint8_t program[] = {0xA2, 0x05, 0xA9, 0x88, 0x95, 0x20, 0x00};  // LDX #0x05, LDA #0x88, STA $20,X, BRK
+        load_instruction(0x0000, program, 7);
+
+        // Reset and run
+        reset_cpu();
+        run_cycles(25);  
+
+        // Check results
+        uint8_t mem_val = cpu_i->memory_i->mem[0x25]; // 0x20 + X(0x05) = 0x25
+        bool test_passed = (mem_val == 0x88);
+
+        std::cout << "Expected Mem[0x25]: 0x88, Got Mem[0x25]: 0x" << std::hex << std::setw(2) << std::setfill('0') 
+                  << (int)mem_val << std::endl;
+        
+        check_result("STA $20,X", test_passed);
+    }
+    //Test STA abs (0x8D)
+    void test_sta_abs(){
+        std::cout << "\n=== Testing STA Absolute (0x8D) ===" << std::endl;
+
+        // Clear memory
+        for (int i = 0; i < 600; ++i) {
+            cpu_i->memory_i->mem[i] = 0x00;
+        }
+
+        // Load instruction: LDA #0x77; STA $0300
+        uint8_t program[] = {0xA9, 0x77, 0x8D, 0x00, 0x03, 0x00};  // LDA #0x77, STA $0300, BRK
+        load_instruction(0x0000, program, 6);
+
+        // Reset and run
+        reset_cpu();
+        run_cycles(20);  
+
+        // Check results
+        uint8_t mem_val = cpu_i->memory_i->mem[0x0300];
+        bool test_passed = (mem_val == 0x77);
+
+        std::cout << "Expected Mem[0x0300]: 0x77, Got Mem[0x0300]: 0x" << std::hex << std::setw(2) << std::setfill('0') 
+                  << (int)mem_val << std::endl;
+        
+        check_result("STA $0300", test_passed);
+    }
+    // Test STA abs,X (0x9D)
+    void test_sta_abs_x(){
+        std::cout << "\n=== Testing STA Absolute,X (0x9D) ===" << std::endl;
+
+        // Clear memory
+        for (int i = 0; i < 600; ++i) {
+            cpu_i->memory_i->mem[i] = 0x00;
+        }
+
+        // Load instruction: LDX #0x04; LDA #0x66; STA $0300,X
+        uint8_t program[] = {0xA2, 0x04, 0xA9, 0x66, 0x9D, 0x00, 0x03, 0x00};  // LDX #0x04, LDA #0x66, STA $0300,X, BRK
+        load_instruction(0x0000, program, 8);
+
+        // Reset and run
+        reset_cpu();
+        run_cycles(30);  
+
+        // Check results
+        uint8_t mem_val = cpu_i->memory_i->mem[0x0304]; // 0x0300 + X(0x04) = 0x0304
+        bool test_passed = (mem_val == 0x66);
+
+        std::cout << "Expected Mem[0x0304]: 0x66, Got Mem[0x0304]: 0x" << std::hex << std::setw(2) << std::setfill('0') 
+                  << (int)mem_val << std::endl;
+        
+        check_result("STA $0300,X", test_passed);
+    }
+    
+    // Test STA abs, Y (0x99)
+    void test_sta_abs_y(){
+        std::cout << "\n=== Testing STA Absolute,Y (0x99) ===" << std::endl;
+
+        // Clear memory
+        for (int i = 0; i < 600; ++i) {
+            cpu_i->memory_i->mem[i] = 0x00;
+        }
+
+        // Load instruction: LDY #0x03; LDA #0x55; STA $0400,Y
+        uint8_t program[] = {0xA0, 0x03, 0xA9, 0x55, 0x99, 0x00, 0x04, 0x00};  // LDY #0x03, LDA #0x55, STA $0400,Y, BRK
+        load_instruction(0x0000, program, 8);
+
+        // Reset and run
+        reset_cpu();
+        run_cycles(30);  
+
+        // Check results
+        uint8_t mem_val = cpu_i->memory_i->mem[0x0403]; // 0x0400 + Y(0x03) = 0x0403
+        bool test_passed = (mem_val == 0x55);
+
+        std::cout << "Expected Mem[0x0403]: 0x55, Got Mem[0x0403]: 0x" << std::hex << std::setw(2) << std::setfill('0') 
+                  << (int)mem_val << std::endl;
+        
+        check_result("STA $0400,Y", test_passed);
+    }
+
+    // Test STA (ind, X) 
+    void test_sta_ind_x(){
+        std::cout << "\n=== Testing STA (ind,X) (0x81) ===" << std::endl;
+
+        // Clear memory
+        for (int i = 0; i < 600; ++i) {
+            cpu_i->memory_i->mem[i] = 0x00;
+        }
+
+        // Setup indirect address
+        cpu_i->memory_i->mem[0x31] = 0x00; // Low byte of target address
+        cpu_i->memory_i->mem[0x32] = 0x05; // High byte of target address
+        // Target address is $0500
+
+        // Load instruction: LDX #0x01; LDA #0x44; STA ($30,X)
+        uint8_t program[] = {0xA2, 0x01, 0xA9, 0x44, 0x81, 0x30, 0x00};  // LDX #0x01, LDA #0x44, STA ($30,X), BRK
+        load_instruction(0x0000, program, 7);
+
+        // Reset and run
+        reset_cpu();
+        run_cycles(40);  
+
+        // Check results
+        uint8_t mem_val = cpu_i->memory_i->mem[0x0500]; // Target address $0500 + X(0x01) = $0501
+        bool test_passed = (mem_val == 0x44);
+
+        std::cout << "Expected Mem[0x0500]: 0x44, Got Mem[0x0500]: 0x" << std::hex << std::setw(2) << std::setfill('0') 
+                  << (int)mem_val << std::endl;
+        
+        check_result("STA ($30,X)", test_passed);
+    }
+
     // Main test runner
     void run_tests() {
         std::cout << "\n========================================" << std::endl;
@@ -272,6 +437,12 @@ SC_MODULE(cpu_tb) {
         test_lda_negative_flag();
         test_ldx_immediate();
         test_ldy_immediate();
+        test_sta_zp();
+        test_sta_zp_x();
+        test_sta_abs();
+        test_sta_abs_x();
+        test_sta_abs_y();
+        test_sta_ind_x();
 
         
 
