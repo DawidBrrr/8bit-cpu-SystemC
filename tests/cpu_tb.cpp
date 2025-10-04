@@ -414,13 +414,149 @@ SC_MODULE(cpu_tb) {
         run_cycles(40);  
 
         // Check results
-        uint8_t mem_val = cpu_i->memory_i->mem[0x0500]; // Target address $0500 + X(0x01) = $0501
+        uint8_t mem_val = cpu_i->memory_i->mem[0x0500]; // Target address $0500 
         bool test_passed = (mem_val == 0x44);
 
         std::cout << "Expected Mem[0x0500]: 0x44, Got Mem[0x0500]: 0x" << std::hex << std::setw(2) << std::setfill('0') 
                   << (int)mem_val << std::endl;
         
         check_result("STA ($30,X)", test_passed);
+    }
+    //Test STA (ind), Y (0x91)
+    void test_sta_ind_y(){
+        std::cout << "\n=== Testing STA (ind),Y (0x91) ===" << std::endl;
+
+        // Clear memory
+        for (int i = 0; i < 600; ++i) {
+            cpu_i->memory_i->mem[i] = 0x00;
+        }
+
+        // Setup indirect address
+        cpu_i->memory_i->mem[0x40] = 0x00; // Low byte of target address
+        cpu_i->memory_i->mem[0x41] = 0x05; // High byte of target address
+        // Target address is $0500
+
+        // Load instruction: LDY #0x02; LDA #0x33; STA ($40),Y
+        uint8_t program[] = {0xA0, 0x02, 0xA9, 0x33, 0x91, 0x40, 0x00};  // LDY #0x02, LDA #0x33, STA ($40),Y, BRK
+        load_instruction(0x0000, program, 7);
+
+        // Reset and run
+        reset_cpu();
+        run_cycles(40);  
+
+        // Check results
+        uint8_t mem_val = cpu_i->memory_i->mem[0x0502]; // Target address $0500 + Y(0x02) = $0502
+        bool test_passed = (mem_val == 0x33);
+
+        std::cout << "Expected Mem[0x0502]: 0x33, Got Mem[0x0502]: 0x" << std::hex << std::setw(2) << std::setfill('0') 
+                  << (int)mem_val << std::endl;
+        
+        check_result("STA ($40),Y", test_passed);
+    }
+
+    // Test STX zp
+    void test_stx_zp(){
+        std::cout << "\n=== Testing STX Zero Page (0x86) ===" << std::endl;
+
+        // Clear memory
+        for (int i = 0; i < 100; ++i) {
+            cpu_i->memory_i->mem[i] = 0x00;
+        }
+
+        // Load instruction: LDX #0x12; STX $30
+        uint8_t program[] = {0xA2, 0x12, 0x86, 0x30, 0x00};  // LDX #0x12, STX $30, BRK
+        load_instruction(0x0000, program, 5);
+
+        // Reset and run
+        reset_cpu();
+        run_cycles(15);  
+
+        // Check results
+        uint8_t mem_val = cpu_i->memory_i->mem[0x30];
+        bool test_passed = (mem_val == 0x12);
+
+        std::cout << "Expected Mem[0x30]: 0x12, Got Mem[0x30]: 0x" << std::hex << std::setw(2) << std::setfill('0') 
+                  << (int)mem_val << std::endl;
+        
+        check_result("STX $30", test_passed);
+    }
+    //Test STX zp, Y
+    void test_stx_zp_y(){
+        std::cout << "\n=== Testing STX Zero Page,Y (0x96) ===" << std::endl;
+
+        // Clear memory
+        for (int i = 0; i < 100; ++i) {
+            cpu_i->memory_i->mem[i] = 0x00;
+        }
+
+        // Load instruction: LDY #0x03; LDX #0x34; STX $30,Y
+        uint8_t program[] = {0xA0, 0x03, 0xA2, 0x34, 0x96, 0x30, 0x00};  // LDY #0x03, LDX #0x34, STX $30,Y, BRK
+        load_instruction(0x0000, program, 7);
+
+        // Reset and run
+        reset_cpu();
+        run_cycles(25);  
+
+        // Check results
+        uint8_t mem_val = cpu_i->memory_i->mem[0x33]; // 0x30 + Y(0x03) = 0x33
+        bool test_passed = (mem_val == 0x34);
+
+        std::cout << "Expected Mem[0x33]: 0x34, Got Mem[0x33]: 0x" << std::hex << std::setw(2) << std::setfill('0') 
+                  << (int)mem_val << std::endl;
+        
+        check_result("STX $30,Y", test_passed);
+    }
+    // Test STY zp
+    void test_sty_zp(){
+        std::cout << "\n=== Testing STY Zero Page (0x84) ===" << std::endl;
+
+        // Clear memory
+        for (int i = 0; i < 100; ++i) {
+            cpu_i->memory_i->mem[i] = 0x00;
+        }
+
+        // Load instruction: LDY #0x56; STY $40
+        uint8_t program[] = {0xA0, 0x56, 0x84, 0x40, 0x00};  // LDY #0x56, STY $40, BRK
+        load_instruction(0x0000, program, 5);
+
+        // Reset and run
+        reset_cpu();
+        run_cycles(15);  
+
+        // Check results
+        uint8_t mem_val = cpu_i->memory_i->mem[0x40];
+        bool test_passed = (mem_val == 0x56);
+
+        std::cout << "Expected Mem[0x40]: 0x56, Got Mem[0x40]: 0x" << std::hex << std::setw(2) << std::setfill('0') 
+                  << (int)mem_val << std::endl;
+        
+        check_result("STY $40", test_passed);
+    }
+    // Test STY zp, X
+    void test_sty_zp_x(){
+        std::cout << "\n=== Testing STY Zero Page,X (0x94) ===" << std::endl;
+
+        // Clear memory
+        for (int i = 0; i < 100; ++i) {
+            cpu_i->memory_i->mem[i] = 0x00;
+        }
+
+        // Load instruction: LDX #0x02; LDY #0x78; STY $40,X
+        uint8_t program[] = {0xA2, 0x02, 0xA0, 0x78, 0x94, 0x40, 0x00};  // LDX #0x02, LDY #0x78, STY $40,X, BRK
+        load_instruction(0x0000, program, 7);
+
+        // Reset and run
+        reset_cpu();
+        run_cycles(25);  
+
+        // Check results
+        uint8_t mem_val = cpu_i->memory_i->mem[0x42]; // 0x40 + X(0x02) = 0x42
+        bool test_passed = (mem_val == 0x78);
+
+        std::cout << "Expected Mem[0x42]: 0x78, Got Mem[0x42]: 0x" << std::hex << std::setw(2) << std::setfill('0') 
+                  << (int)mem_val << std::endl;
+        
+        check_result("STY $40,X", test_passed);
     }
 
     // Main test runner
@@ -443,6 +579,11 @@ SC_MODULE(cpu_tb) {
         test_sta_abs_x();
         test_sta_abs_y();
         test_sta_ind_x();
+        test_sta_ind_y();
+        test_stx_zp();
+        test_stx_zp_y();
+        test_sty_zp();
+        test_sty_zp_x();
 
         
 
