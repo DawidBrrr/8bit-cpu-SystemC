@@ -743,6 +743,127 @@ SC_MODULE(cpu_tb) {
         check_result("TYA", test_passed);        
     }
 
+    // Test PHA
+    void test_pha(){
+        std::cout << "\n=== Testing PHA (0x48) ===" << std::endl;
+
+        // Clear memory
+        for (int i = 0; i < 512; ++i) {
+            cpu_i->memory_i->mem[i] = 0x00;
+        } 
+        // Load instruction: LDA #0xAB; PHA
+        uint8_t program[] = {0xA9, 0xAB, 0x48, 0x00};  // LDA #0xAB, PHA, BRK
+        load_instruction(0x0000, program, 4);
+
+        // Reset and run
+        reset_cpu();
+        run_cycles(20);
+
+        // Check results
+        uint8_t reg_a = cpu_i->regfile_i->A;
+        uint8_t reg_s = cpu_i->regfile_i->S;
+        uint16_t sp_address = 0x0100 + reg_s + 1; // Stack grows down, so value is at S+1
+        uint8_t mem_val = cpu_i->memory_i->mem[sp_address];
+        bool test_passed = (reg_a == 0xAB) && (mem_val == 0xAB);
+        std::cout << "Expected A: 0xAB, Got A: 0x" << std::hex << std::setw(2) << std::setfill('0') 
+                  << (int)reg_a << std::endl;
+        std::cout << "Expected Mem[0x" << std::hex << std::setw(2) << std::setfill('0') << (int)sp_address 
+                  << "]: 0xAB, Got Mem[0x" << std::hex << std::setw(2) << std::setfill('0') << (int)sp_address 
+                  << "]: 0x" << std::hex << std::setw(2) << std::setfill('0') << (int)mem_val << std::endl;
+        check_result("PHA", test_passed);
+    }
+
+    // Test PHP
+    void test_php(){
+        std::cout << "\n=== Testing PHP (0x08) ===" << std::endl;
+
+        for (int i = 0; i < 512; ++i) {
+            cpu_i->memory_i->mem[i] = 0x00;
+        }
+
+        uint8_t program[] = {0xA2, 0xFD, 0x9A, 0xA9, 0xAB, 0x08, 0x00};  // LDX #$FD, TXS, LDA #$AB, PHP, BRK
+        load_instruction(0x0000, program, sizeof(program));
+
+        reset_cpu();
+        run_cycles(40);
+
+        uint8_t reg_p = cpu_i->regfile_i->P;
+        uint8_t reg_s = cpu_i->regfile_i->S;
+        uint16_t sp_address = 0x0100 + reg_s + 1;
+        uint8_t mem_val = cpu_i->memory_i->mem[sp_address];
+        uint8_t expected_pushed = reg_p | 0x30;
+        bool test_passed = (mem_val == expected_pushed) && (reg_s == 0xFC);
+
+        std::cout << "Expected pushed P: 0x" << std::hex << std::setw(2) << std::setfill('0')
+                  << (int)expected_pushed << ", Got Mem[0x" << std::setw(4) << std::setfill('0')
+                  << sp_address << "]: 0x" << std::setw(2) << std::setfill('0') << (int)mem_val << std::endl;
+        std::cout << "Expected SP: 0xFC, Got SP: 0x" << std::hex << std::setw(2) << std::setfill('0')
+                  << (int)reg_s << std::endl;
+
+        check_result("PHP", test_passed);
+    }
+
+    // Test PLA
+    void test_pla(){
+        std::cout << "\n=== Testing PLA (0x68) ===" << std::endl;
+
+        for (int i = 0; i < 512; ++i) {
+            cpu_i->memory_i->mem[i] = 0x00;
+        }
+
+        uint8_t program[] = {0xA2, 0xFD, 0x9A, 0xA9, 0x55, 0x48, 0xA9, 0x00, 0x68, 0x00};
+        load_instruction(0x0000, program, sizeof(program));
+
+        reset_cpu();
+        run_cycles(50);
+
+        uint8_t reg_a = cpu_i->regfile_i->A;
+        uint8_t reg_s = cpu_i->regfile_i->S;
+        uint8_t reg_p = cpu_i->regfile_i->P;
+        bool zero_flag = (reg_p & 0x02) != 0;
+        bool negative_flag = (reg_p & 0x80) != 0;
+        bool test_passed = (reg_a == 0x55) && (reg_s == 0xFD) && !zero_flag && !negative_flag;
+
+        std::cout << "Expected A: 0x55, Got A: 0x" << std::hex << std::setw(2) << std::setfill('0')
+                  << (int)reg_a << std::endl;
+        std::cout << "Expected SP: 0xFD, Got SP: 0x" << std::hex << std::setw(2) << std::setfill('0')
+                  << (int)reg_s << std::endl;
+        std::cout << "Z flag cleared? " << (zero_flag ? "no" : "yes")
+                  << ", N flag cleared? " << (negative_flag ? "no" : "yes") << std::endl;
+
+        check_result("PLA", test_passed);
+    }
+
+    // Test PLP
+    void test_plp(){
+        std::cout << "\n=== Testing PLP (0x28) ===" << std::endl;
+
+        for (int i = 0; i < 512; ++i) {
+            cpu_i->memory_i->mem[i] = 0x00;
+        }
+
+        uint8_t program[] = {0xA2, 0xFE, 0x9A, 0xA9, 0x80, 0x08, 0xA9, 0x00, 0x28, 0x00};
+        load_instruction(0x0000, program, sizeof(program));
+
+        reset_cpu();
+        run_cycles(50);
+
+        uint8_t reg_p = cpu_i->regfile_i->P;
+        uint8_t reg_s = cpu_i->regfile_i->S;
+        uint16_t popped_addr = 0x0100 + reg_s;
+        uint8_t stacked_value = cpu_i->memory_i->mem[popped_addr];
+        uint8_t expected_p = stacked_value | 0x20;
+        bool test_passed = (reg_p == expected_p) && (reg_s == 0xFE);
+
+        std::cout << "Expected restored P: 0x" << std::hex << std::setw(2) << std::setfill('0')
+                  << (int)expected_p << ", Got P: 0x" << std::setw(2) << std::setfill('0')
+                  << (int)reg_p << std::endl;
+        std::cout << "Expected SP: 0xFE, Got SP: 0x" << std::hex << std::setw(2) << std::setfill('0')
+                  << (int)reg_s << std::endl;
+
+        check_result("PLP", test_passed);
+    }
+
     // Main test runner
     void run_tests() {
         std::cout << "\n========================================" << std::endl;
@@ -774,6 +895,10 @@ SC_MODULE(cpu_tb) {
         test_txa();
         test_txs();
         test_tya();
+        test_pha();
+        test_php();
+        test_pla();
+        test_plp();
 
         
 

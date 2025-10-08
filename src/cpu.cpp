@@ -92,6 +92,14 @@ sc_uint<8> cpu::get_register_value(sc_uint<3> reg_index) {
 	}
 }
 
+bool cpu::is_stack_push_instruction(sc_uint<8> opcode) {
+	return opcode == 0x48 || opcode == 0x08; // PHA, PHP
+}
+
+bool cpu::is_stack_pull_instruction(sc_uint<8> opcode) {
+	return opcode == 0x68 || opcode == 0x28; // PLA, PLP
+}
+
 
 // Automat fetch/execute
 void cpu::fetch_execute() {
@@ -106,6 +114,7 @@ void cpu::fetch_execute() {
 		effective_addr = 0x0000;
 		pc.write(pc_val);
 		ir.write(ir_val);
+		stack_data_ready = false;
 		return;
 	}
 
@@ -304,6 +313,50 @@ void cpu::fetch_execute() {
 		}
 		case EXECUTE: {
 			addressing_mode_t mode = get_addressing_mode(ir_val);
+			auto advance_pc = [&]() {
+				int instr_length = get_instruction_length(ir_val);
+				if (pc_load.read()) {
+					pc_val = pc_new.read();
+				} else if (pc_inc.read()) {
+					pc_val = pc_val + instr_length;
+				}
+				pc.write(pc_val);
+			};
+
+			bool is_push = is_stack_push_instruction(ir_val);
+			bool is_pull = is_stack_pull_instruction(ir_val);
+
+			if (is_push) {
+				sc_uint<16> stack_addr = 0x0100;
+				stack_addr += regfile_i->S;
+				sc_uint<8> data_to_store = regfile_i->A;
+				if (ir_val == 0x08) { // PHP sets bits 4 and 5
+					data_to_store = sc_uint<8>(regfile_i->P | 0x30);
+				}
+
+				mem_addr.write(stack_addr);
+				mem_w_data.write(data_to_store);
+				mem_we.write(true);
+				effective_addr = stack_addr;
+
+				regfile_i->S = regfile_i->S - 1;
+				stack_data_ready = false;
+
+				advance_pc();
+				state = FETCH;
+				break;
+			}
+
+			if (is_pull && !stack_data_ready) {
+				sc_uint<8> new_sp = regfile_i->S + 1;
+				regfile_i->S = new_sp;
+				sc_uint<16> stack_addr = 0x0100;
+				stack_addr += new_sp;
+				mem_addr.write(stack_addr);
+				effective_addr = stack_addr;
+				state = STACK_PULL_WAIT;
+				break;
+			}
 			
 			// Fetch operand if needed (does not apply to STORE instructions)
 			if (needs_operand(ir_val) && !is_store_instruction(ir_val)) {
@@ -324,9 +377,11 @@ void cpu::fetch_execute() {
 
 				// Set ALU parameters
 				if (alu_op.read() == 0xB) {
-					sc_uint<8> source_value = operand;
-					if (mode == IMPLIED) {
+					sc_uint<8> source_value;
+					if (mode == IMPLIED && !mem_oe.read() && !stack_data_ready) {
 						source_value = get_register_value(reg_r_addr.read());
+					} else {
+						source_value = operand;
 					}
 					alu_a.write(source_value);
 					alu_b.write(0);
@@ -378,14 +433,8 @@ void cpu::fetch_execute() {
 			}
 			
 			// Update PC
-			int instr_length = get_instruction_length(ir_val);
-			if (pc_load.read()) {
-				pc_val = pc_new.read();
-			} else if (pc_inc.read()) {
-				pc_val = pc_val + instr_length;
-			}
-			pc.write(pc_val);
-			//std::cout << "EXECUTE: New PC = 0x" << std::hex << (int)pc_val << std::endl;
+			advance_pc();
+			stack_data_ready = false;
 			
 			state = FETCH;
 			break;
@@ -417,8 +466,25 @@ void cpu::fetch_execute() {
 			}
 			pc.write(pc_val);
 			//std::cout << "WAIT_ALU: New PC = 0x" << std::hex << (int)pc_val << std::endl;
+			stack_data_ready = false;
 			
 			state = FETCH;
+			break;
+		}
+		case STACK_PULL_WAIT:
+			// Allow memory one cycle to present data
+			state = STACK_PULL_FETCH;
+			break;
+
+		case STACK_PULL_FETCH: {
+			sc_uint<8> value = mem_r_data.read();
+			if (ir_val == 0x28) {
+				operand = value | 0x20; // Ensure bit 5 set when restoring P
+			} else {
+				operand = value;
+			}
+			stack_data_ready = true;
+			state = EXECUTE;
 			break;
 		}
 	}
