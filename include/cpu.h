@@ -84,6 +84,7 @@ SC_MODULE(cpu) {
     int get_instruction_length(sc_uint<8> opcode);
     bool needs_operand(sc_uint<8> opcode);
     bool is_store_instruction(sc_uint<8> opcode);
+    sc_uint<8> get_register_value(sc_uint<3> reg_index);
 
     ~cpu() {
         delete alu_i;

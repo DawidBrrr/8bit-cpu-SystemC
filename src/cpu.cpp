@@ -81,6 +81,17 @@ bool cpu::is_store_instruction(sc_uint<8> opcode) {
     }
 }
 
+sc_uint<8> cpu::get_register_value(sc_uint<3> reg_index) {
+	switch (reg_index.to_uint()) {
+		case 0: return regfile_i->A;
+		case 1: return regfile_i->X;
+		case 2: return regfile_i->Y;
+		case 3: return regfile_i->S;
+		case 4: return regfile_i->P;
+		default: return 0;
+	}
+}
+
 
 // Automat fetch/execute
 void cpu::fetch_execute() {
@@ -312,10 +323,13 @@ void cpu::fetch_execute() {
 				bool carry_flag = alu_carry_in.read() != 0;
 
 				// Set ALU parameters
-				// For MOV operations (LDA/LDX/LDY), pass operand through ALU input 'a'
 				if (alu_op.read() == 0xB) {
-					alu_a.write(operand);       // For MOV: pass operand through 'a' input
-					alu_b.write(0);             // 'b' is unused for MOV
+					sc_uint<8> source_value = operand;
+					if (mode == IMPLIED) {
+						source_value = get_register_value(reg_r_addr.read());
+					}
+					alu_a.write(source_value);
+					alu_b.write(0);
 				} else {
 					alu_a.write(reg_a_val);     // For arithmetic/logic ops: use current A value
 					alu_b.write(operand);       // Operand from instruction

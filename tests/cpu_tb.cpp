@@ -559,6 +559,190 @@ SC_MODULE(cpu_tb) {
         check_result("STY $40,X", test_passed);
     }
 
+    // Test TAX (0xAA)
+    void test_tax() {
+        std::cout << "\n=== Testing TAX (0xAA) ===" << std::endl;
+
+        // Clear memory
+        for (int i = 0; i < 100; ++i) {
+            cpu_i->memory_i->mem[i] = 0x00;
+        }
+
+        // Load instruction: LDA #0x7F; TAX
+        uint8_t program[] = {0xA9, 0x7F, 0xAA, 0x00};  // LDA #0x7F, TAX, BRK
+        load_instruction(0x0000, program, 4);
+
+        // Reset and run
+        reset_cpu();
+        run_cycles(15);  
+
+        // Check results
+        uint8_t reg_a = cpu_i->regfile_i->A;
+        uint8_t reg_x = cpu_i->regfile_i->X;
+        bool test_passed = (reg_a == 0x7F) && (reg_x == 0x7F);
+
+        std::cout << "Expected A: 0x7F, Got A: 0x" << std::hex << std::setw(2) << std::setfill('0') 
+                  << (int)reg_a << std::endl;
+        std::cout << "Expected X: 0x7F, Got X: 0x" << std::hex << std::setw(2) << std::setfill('0') 
+                  << (int)reg_x << std::endl;
+        
+        check_result("TAX", test_passed);
+    }
+
+    // TEST TAY (0xA8)
+    void test_tay() {
+        std::cout << "\n=== Testing TAY (0xA8) ===" << std::endl;
+
+        // Clear memory
+        for (int i = 0; i < 100; ++i) {
+            cpu_i->memory_i->mem[i] = 0x00;
+        }
+
+        // Load instruction: LDA #0x3C; TAY
+        uint8_t program[] = {0xA9, 0x3C, 0xA8, 0x00};  // LDA #0x3C, TAY, BRK
+        load_instruction(0x0000, program, 4);
+
+        // Reset and run
+        reset_cpu();
+        run_cycles(15);  
+
+        // Check results
+        uint8_t reg_a = cpu_i->regfile_i->A;
+        uint8_t reg_y = cpu_i->regfile_i->Y;
+        bool test_passed = (reg_a == 0x3C) && (reg_y == 0x3C);
+
+        std::cout << "Expected A: 0x3C, Got A: 0x" << std::hex << std::setw(2) << std::setfill('0') 
+                  << (int)reg_a << std::endl;
+        std::cout << "Expected Y: 0x3C, Got Y: 0x" << std::hex << std::setw(2) << std::setfill('0') 
+                  << (int)reg_y << std::endl;
+        
+        check_result("TAY", test_passed);        
+    }
+    // TEST TSX (0xBA)
+    void test_tsx() {
+        std::cout << "\n=== Testing TSX (0xBA) ===" << std::endl;
+
+        // Clear memory
+        for (int i = 0; i < 100; ++i) {
+            cpu_i->memory_i->mem[i] = 0x00;
+        }
+
+        // Reset first to get initial Stack Pointer value
+        reset_cpu();
+        uint8_t initial_s = cpu_i->regfile_i->S;  // Get initial Stack Pointer value (should be 0xFF)
+
+        // Load instruction: LDX #0x50; TSX
+        uint8_t program[] = {0xA2, 0x50, 0xBA, 0x00};  // LDX #0x50, TSX, BRK
+        load_instruction(0x0000, program, 4);
+
+        // Reset and run
+        reset_cpu();
+        run_cycles(15);  
+
+        // Check results
+        uint8_t reg_x = cpu_i->regfile_i->X;
+        uint8_t reg_s = cpu_i->regfile_i->S;
+        
+        // TSX should transfer Stack Pointer to X register
+        bool test_passed = (reg_x == initial_s) && (reg_s == initial_s);
+
+        std::cout << "Expected X: 0x" << std::hex << std::setw(2) << std::setfill('0') 
+                  << (int)initial_s << ", Got X: 0x" << std::hex << std::setw(2) << std::setfill('0') 
+                  << (int)reg_x << std::endl;
+        std::cout << "Expected S: 0x" << std::hex << std::setw(2) << std::setfill('0') 
+                  << (int)initial_s << ", Got S: 0x" << std::hex << std::setw(2) << std::setfill('0') 
+                  << (int)reg_s << std::endl;
+        
+        check_result("TSX", test_passed);        
+    }
+    //Test TXA (0x8A)
+    void test_txa() {
+        std::cout << "\n=== Testing TXA (0x8A) ===" << std::endl;
+
+        // Clear memory
+        for (int i = 0; i < 100; ++i) {
+            cpu_i->memory_i->mem[i] = 0x00;
+        }
+
+        // Load instruction: LDX #0x25; TXA
+        uint8_t program[] = {0xA2, 0x25, 0x8A, 0x00};  // LDX #0x25, TXA, BRK
+        load_instruction(0x0000, program, 4);
+
+        // Reset and run
+        reset_cpu();
+        run_cycles(15);  
+
+        // Check results
+        uint8_t reg_x = cpu_i->regfile_i->X;
+        uint8_t reg_a = cpu_i->regfile_i->A;
+        bool test_passed = (reg_x == 0x25) && (reg_a == 0x25);
+
+        std::cout << "Expected X: 0x25, Got X: 0x" << std::hex << std::setw(2) << std::setfill('0') 
+                  << (int)reg_x << std::endl;
+        std::cout << "Expected A: 0x25, Got A: 0x" << std::hex << std::setw(2) << std::setfill('0') 
+                  << (int)reg_a << std::endl;
+        
+        check_result("TXA", test_passed);        
+    }
+    //Test TXS (0x9A)
+    void test_txs() {
+        std::cout << "\n=== Testing TXS (0x9A) ===" << std::endl;
+
+        // Clear memory
+        for (int i = 0; i < 100; ++i) {
+            cpu_i->memory_i->mem[i] = 0x00;
+        }
+
+        // Load instruction: LDX #0x60; TXS
+        uint8_t program[] = {0xA2, 0x60, 0x9A, 0x00};  // LDX #0x60, TXS, BRK
+        load_instruction(0x0000, program, 4);
+
+        // Reset and run
+        reset_cpu();
+        run_cycles(15);  
+
+        // Check results
+        uint8_t reg_x = cpu_i->regfile_i->X;
+        uint8_t reg_s = cpu_i->regfile_i->S;
+        bool test_passed = (reg_x == 0x60) && (reg_s == 0x60);
+
+        std::cout << "Expected X: 0x60, Got X: 0x" << std::hex << std::setw(2) << std::setfill('0') 
+                  << (int)reg_x << std::endl;
+        std::cout << "Expected S: 0x60, Got S: 0x" << std::hex << std::setw(2) << std::setfill('0') 
+                  << (int)reg_s << std::endl;
+        
+        check_result("TXS", test_passed);        
+    }
+    //Test TYA (0x98)
+    void test_tya() {
+        std::cout << "\n=== Testing TYA (0x98) ===" << std::endl;
+
+        // Clear memory
+        for (int i = 0; i < 100; ++i) {
+            cpu_i->memory_i->mem[i] = 0x00;
+        }
+
+        // Load instruction: LDY #0x45; TYA
+        uint8_t program[] = {0xA0, 0x45, 0x98, 0x00};  // LDY #0x45, TYA, BRK
+        load_instruction(0x0000, program, 4);
+
+        // Reset and run
+        reset_cpu();
+        run_cycles(15);  
+
+        // Check results
+        uint8_t reg_y = cpu_i->regfile_i->Y;
+        uint8_t reg_a = cpu_i->regfile_i->A;
+        bool test_passed = (reg_y == 0x45) && (reg_a == 0x45);
+
+        std::cout << "Expected Y: 0x45, Got Y: 0x" << std::hex << std::setw(2) << std::setfill('0') 
+                  << (int)reg_y << std::endl;
+        std::cout << "Expected A: 0x45, Got A: 0x" << std::hex << std::setw(2) << std::setfill('0') 
+                  << (int)reg_a << std::endl;
+        
+        check_result("TYA", test_passed);        
+    }
+
     // Main test runner
     void run_tests() {
         std::cout << "\n========================================" << std::endl;
@@ -584,6 +768,12 @@ SC_MODULE(cpu_tb) {
         test_stx_zp_y();
         test_sty_zp();
         test_sty_zp_x();
+        test_tax();
+        test_tay();
+        test_tsx();
+        test_txa();
+        test_txs();
+        test_tya();
 
         
 
