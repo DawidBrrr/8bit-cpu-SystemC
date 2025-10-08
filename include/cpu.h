@@ -54,7 +54,7 @@ SC_MODULE(cpu) {
 
 
     // --- fetch/execute fields ---
-    enum cpu_state_t { FETCH, WAIT_INSTRUCTION, DECODE, WAIT_OPERAND, FETCH_ADDR_LOW, PROCESS_ADDR_LOW, FETCH_ADDR_HIGH, PROCESS_ADDR_HIGH, EXECUTE, WAIT_ALU };
+    enum cpu_state_t { FETCH, WAIT_INSTRUCTION, DECODE, WAIT_OPERAND, FETCH_ADDR_LOW, PROCESS_ADDR_LOW, FETCH_ADDR_HIGH, PROCESS_ADDR_HIGH, FETCH_INDIRECT_HIGH, PROCESS_INDIRECT_HIGH, EXECUTE, WAIT_ALU, STACK_PULL_WAIT, STACK_PULL_FETCH };
     cpu_state_t state = FETCH;
     
     // Addressing modes
@@ -76,6 +76,7 @@ SC_MODULE(cpu) {
     sc_uint<8> operand = 0x00;
     sc_uint<16> effective_addr = 0x0000; // Effective address for complex addressing
     sc_uint<8> reg_a_val = 0x00; // Track value of register A
+    bool stack_data_ready = false;
 
     void fetch_execute();
     
@@ -84,6 +85,9 @@ SC_MODULE(cpu) {
     int get_instruction_length(sc_uint<8> opcode);
     bool needs_operand(sc_uint<8> opcode);
     bool is_store_instruction(sc_uint<8> opcode);
+    sc_uint<8> get_register_value(sc_uint<3> reg_index);
+    bool is_stack_push_instruction(sc_uint<8> opcode);
+    bool is_stack_pull_instruction(sc_uint<8> opcode);
 
     ~cpu() {
         delete alu_i;

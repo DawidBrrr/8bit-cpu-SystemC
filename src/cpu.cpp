@@ -81,6 +81,25 @@ bool cpu::is_store_instruction(sc_uint<8> opcode) {
     }
 }
 
+sc_uint<8> cpu::get_register_value(sc_uint<3> reg_index) {
+	switch (reg_index.to_uint()) {
+		case 0: return regfile_i->A;
+		case 1: return regfile_i->X;
+		case 2: return regfile_i->Y;
+		case 3: return regfile_i->S;
+		case 4: return regfile_i->P;
+		default: return 0;
+	}
+}
+
+bool cpu::is_stack_push_instruction(sc_uint<8> opcode) {
+	return opcode == 0x48 || opcode == 0x08; // PHA, PHP
+}
+
+bool cpu::is_stack_pull_instruction(sc_uint<8> opcode) {
+	return opcode == 0x68 || opcode == 0x28; // PLA, PLP
+}
+
 
 // Automat fetch/execute
 void cpu::fetch_execute() {
@@ -95,6 +114,7 @@ void cpu::fetch_execute() {
 		effective_addr = 0x0000;
 		pc.write(pc_val);
 		ir.write(ir_val);
+		stack_data_ready = false;
 		return;
 	}
 
@@ -192,16 +212,23 @@ void cpu::fetch_execute() {
 				effective_addr = addr_low;
 				
 				if (mode == ZERO_PAGE_X) {
-					effective_addr = (effective_addr + regfile_i->r_data.read()) & 0xFF; // X register, wrap w zero page
+					effective_addr = (effective_addr + regfile_i->X) & 0xFF; // X register, wrap w zero page
 				} else if (mode == ZERO_PAGE_Y) {
 					// Fetch Y register (will need to add logic for reg_src)
-					effective_addr = (effective_addr + 0) & 0xFF; // TODO: add Y register
+					effective_addr = (effective_addr + regfile_i->Y) & 0xFF; // TODO: add Y register
 				}
-				
-				if (mode == INDIRECT_X || mode == INDIRECT_Y) {
-					// Indirect addressing - one more read needed
-					mem_addr.write(effective_addr);
-					state = FETCH_ADDR_HIGH; // Will use for indirect
+				if(mode == INDIRECT_X){
+					// add X to zero page address first
+					effective_addr = (addr_low + regfile_i->X) & 0xFF; // X register, wrap w zero page
+					// read the 16 bit pointer from this address
+					mem_addr.write(effective_addr); // Read LSB of effective address
+					state = FETCH_ADDR_HIGH; // Will fetch low byte of pointer next
+				}
+				else if(mode == INDIRECT_Y){
+					// For INDIRECT_Y first read pointer then add Y
+					effective_addr = addr_low; // use zero page address
+					mem_addr.write(effective_addr); // Read LSB of effective address
+					state = FETCH_ADDR_HIGH; // Will fetch pointer next
 				} else {
 					// Direct access to operand
 					mem_addr.write(effective_addr);
@@ -228,22 +255,108 @@ void cpu::fetch_execute() {
 				
 				// Add index if needed
 				if (mode == ABSOLUTE_X) {
-					effective_addr += 0; // TODO: add X register
+					effective_addr += regfile_i->X;
 				} else if (mode == ABSOLUTE_Y) {
-					effective_addr += 0; // TODO: add Y register  
+					effective_addr += regfile_i->Y;
 				}
 				
 				// Set memory address for operand fetch
 				mem_addr.write(effective_addr);
 				state = WAIT_OPERAND;
+			} else if(mode == INDIRECT_X){
+				// For(ind,X) read low byte of pointer, now get the high byte
+				sc_uint<8> ptr_low = addr_high; // low byte from previous read
+				//Read high byte from next zero page address
+				mem_addr.write((effective_addr + 1) & 0xFF); // wrap in zero page
+				// Store low byte temporarily in effective_addr
+				effective_addr = ptr_low; 
+				state = FETCH_INDIRECT_HIGH; 
+			} else if(mode == INDIRECT_Y){
+				// For(ind), Y read low byte of pointer, now get the high byte
+				sc_uint<8> ptr_low = addr_high; // low byte from previous read
+				//Read high byte from next zero page address
+				mem_addr.write((effective_addr + 1) & 0xFF); // wrap in zero page
+				//Store ptr_low temporarily in effective_addr
+				effective_addr = ptr_low;
+				state = FETCH_INDIRECT_HIGH;
 			} else {
-				// Indirect addressing (TODO)
+				// Should not happen
 				state = EXECUTE;
 			}
 			break;
 		}
+		case FETCH_INDIRECT_HIGH: {
+			// Wait one cycle to read high byte of pointer
+			state = PROCESS_INDIRECT_HIGH;
+			break;
+		}
+		case PROCESS_INDIRECT_HIGH: {
+			// Read high byte of indirect pointer
+			sc_uint<8> ptr_high = mem_r_data.read();
+			sc_uint<8> ptr_low = effective_addr; // low byte stored previously
+
+			// Assemble full pointer address
+			effective_addr = ptr_low | (ptr_high << 8); 
+
+			addressing_mode_t mode = get_addressing_mode(ir_val);
+
+			//For INDIRECT Y add Y register to pointer
+			if(mode == INDIRECT_Y){
+				effective_addr += regfile_i->Y;
+			}
+			// For INDIRECT X register was added before reading pointer
+
+			// Set memory address
+			mem_addr.write(effective_addr);
+			state = WAIT_OPERAND;
+			break;
+		}
 		case EXECUTE: {
 			addressing_mode_t mode = get_addressing_mode(ir_val);
+			auto advance_pc = [&]() {
+				int instr_length = get_instruction_length(ir_val);
+				if (pc_load.read()) {
+					pc_val = pc_new.read();
+				} else if (pc_inc.read()) {
+					pc_val = pc_val + instr_length;
+				}
+				pc.write(pc_val);
+			};
+
+			bool is_push = is_stack_push_instruction(ir_val);
+			bool is_pull = is_stack_pull_instruction(ir_val);
+
+			if (is_push) {
+				sc_uint<16> stack_addr = 0x0100;
+				stack_addr += regfile_i->S;
+				sc_uint<8> data_to_store = regfile_i->A;
+				if (ir_val == 0x08) { // PHP sets bits 4 and 5
+					data_to_store = sc_uint<8>(regfile_i->P | 0x30);
+				}
+
+				mem_addr.write(stack_addr);
+				mem_w_data.write(data_to_store);
+				mem_we.write(true);
+				effective_addr = stack_addr;
+
+				regfile_i->S = regfile_i->S - 1;
+				stack_data_ready = false;
+
+				advance_pc();
+				state = FETCH;
+				break;
+			}
+
+			if (is_pull && !stack_data_ready) {
+				sc_uint<8> new_sp = regfile_i->S + 1;
+				regfile_i->S = new_sp;
+				sc_uint<16> stack_addr = 0x0100;
+				stack_addr += new_sp;
+				mem_addr.write(stack_addr);
+				effective_addr = stack_addr;
+				state = STACK_PULL_WAIT;
+				break;
+			}
 			
 			// Fetch operand if needed (does not apply to STORE instructions)
 			if (needs_operand(ir_val) && !is_store_instruction(ir_val)) {
@@ -263,10 +376,15 @@ void cpu::fetch_execute() {
 				bool carry_flag = alu_carry_in.read() != 0;
 
 				// Set ALU parameters
-				// For MOV operations (LDA/LDX/LDY), pass operand through ALU input 'a'
 				if (alu_op.read() == 0xB) {
-					alu_a.write(operand);       // For MOV: pass operand through 'a' input
-					alu_b.write(0);             // 'b' is unused for MOV
+					sc_uint<8> source_value;
+					if (mode == IMPLIED && !mem_oe.read() && !stack_data_ready) {
+						source_value = get_register_value(reg_r_addr.read());
+					} else {
+						source_value = operand;
+					}
+					alu_a.write(source_value);
+					alu_b.write(0);
 				} else {
 					alu_a.write(reg_a_val);     // For arithmetic/logic ops: use current A value
 					alu_b.write(operand);       // Operand from instruction
@@ -315,14 +433,8 @@ void cpu::fetch_execute() {
 			}
 			
 			// Update PC
-			int instr_length = get_instruction_length(ir_val);
-			if (pc_load.read()) {
-				pc_val = pc_new.read();
-			} else if (pc_inc.read()) {
-				pc_val = pc_val + instr_length;
-			}
-			pc.write(pc_val);
-			//std::cout << "EXECUTE: New PC = 0x" << std::hex << (int)pc_val << std::endl;
+			advance_pc();
+			stack_data_ready = false;
 			
 			state = FETCH;
 			break;
@@ -354,8 +466,25 @@ void cpu::fetch_execute() {
 			}
 			pc.write(pc_val);
 			//std::cout << "WAIT_ALU: New PC = 0x" << std::hex << (int)pc_val << std::endl;
+			stack_data_ready = false;
 			
 			state = FETCH;
+			break;
+		}
+		case STACK_PULL_WAIT:
+			// Allow memory one cycle to present data
+			state = STACK_PULL_FETCH;
+			break;
+
+		case STACK_PULL_FETCH: {
+			sc_uint<8> value = mem_r_data.read();
+			if (ir_val == 0x28) {
+				operand = value | 0x20; // Ensure bit 5 set when restoring P
+			} else {
+				operand = value;
+			}
+			stack_data_ready = true;
+			state = EXECUTE;
 			break;
 		}
 	}
