@@ -215,7 +215,7 @@ void cpu::fetch_execute() {
 					effective_addr = (effective_addr + regfile_i->X) & 0xFF; // X register, wrap w zero page
 				} else if (mode == ZERO_PAGE_Y) {
 					// Fetch Y register (will need to add logic for reg_src)
-					effective_addr = (effective_addr + regfile_i->Y) & 0xFF; // TODO: add Y register
+					effective_addr = (effective_addr + regfile_i->Y) & 0xFF; 
 				}
 				if(mode == INDIRECT_X){
 					// add X to zero page address first

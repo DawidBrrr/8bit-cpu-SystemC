@@ -864,6 +864,162 @@ SC_MODULE(cpu_tb) {
         check_result("PLP", test_passed);
     }
 
+    // Test AND imm (0x29)
+    void test_and_imm(){
+        std::cout << "\n=== Testing AND Immediate (0x29) ===" << std::endl;
+
+        // Clear memory
+        for (int i = 0; i < 100; ++i) {
+            cpu_i->memory_i->mem[i] = 0x00;
+        }
+
+        // Load instruction: LDA #0xF1; AND #0x0F
+        uint8_t program[] = {0xA9, 0xF1, 0x29, 0x0F, 0x00};  // LDA #0xF1, AND #0x0F, BRK
+        load_instruction(0x0000, program, 5);
+
+        // Reset and run
+        reset_cpu();
+        run_cycles(20);  
+
+        // Check results
+        uint8_t reg_a = cpu_i->regfile_i->A;
+        bool zero_flag = (cpu_i->regfile_i->P & 0x02) == 0;
+        bool negative_flag = (cpu_i->regfile_i->P & 0x80) != 0;
+        bool test_passed = (reg_a == 0x01) && zero_flag && !negative_flag;
+
+        std::cout << "Expected A: 0x01, Got A: 0x" << std::hex << std::setw(2) << std::setfill('0') 
+                  << (int)reg_a << std::endl;
+        std::cout << "Z flag set? " << (zero_flag ? "yes" : "no") 
+                  << ", N flag cleared? " << (negative_flag ? "no" : "yes") << std::endl;
+
+        check_result("AND #$0F", test_passed);
+    }
+    //Test AND zp
+    void test_and_zp(){
+        std::cout << "\n=== Testing AND Zero Page (0x25) ===" << std::endl;
+
+        // Clear memory
+        for (int i = 0; i < 100; ++i) {
+            cpu_i->memory_i->mem[i] = 0x00;
+        }
+        // Set memory location $10 to 0x3C
+        cpu_i->memory_i->mem[0x10] = 0x3C;
+
+        // Load instruction: LDA #0xF1; AND $10
+        uint8_t program[] = {0xA9, 0xF1, 0x25, 0x10, 0x00};  // LDA #0xF1, AND $10, BRK
+        load_instruction(0x0000, program, 5);
+
+        // Reset and run
+        reset_cpu();
+        run_cycles(20);  
+
+        // Check results
+        uint8_t reg_a = cpu_i->regfile_i->A;
+        bool zero_flag = (cpu_i->regfile_i->P & 0x02) == 0;
+        bool negative_flag = (cpu_i->regfile_i->P & 0x80) != 0;
+        bool test_passed = (reg_a == 0x30) && zero_flag && !negative_flag;
+
+        std::cout << "Expected A: 0x30, Got A: 0x" << std::hex << std::setw(2) << std::setfill('0') 
+                  << (int)reg_a << std::endl;
+        std::cout << "Z flag set? " << (zero_flag ? "yes" : "no") 
+                  << ", N flag cleared? " << (negative_flag ? "no" : "yes") << std::endl;
+
+        check_result("AND $10", test_passed);
+    }
+    //Test AND abs
+    void test_and_abs(){
+        std::cout << "\n=== Testing AND Absolute (0x2D) ===" << std::endl;
+
+        // Clear memory
+        for (int i = 0; i < 600; ++i) {
+            cpu_i->memory_i->mem[i] = 0x00;
+        }
+        // Set memory location $1234 to 0x5A
+        cpu_i->memory_i->mem[0x1234] = 0x5A;
+
+        // Load instruction: LDA #0xFF; AND $1234
+        uint8_t program[] = {0xA9, 0xFF, 0x2D, 0x34, 0x12, 0x00};  // LDA #0xFF, AND $1234, BRK
+        load_instruction(0x0000, program, 6);
+
+        // Reset and run
+        reset_cpu();
+        run_cycles(25);  
+
+        // Check results
+        uint8_t reg_a = cpu_i->regfile_i->A;
+        bool zero_flag = (cpu_i->regfile_i->P & 0x02) == 0;
+        bool negative_flag = (cpu_i->regfile_i->P & 0x80) != 0;
+        bool test_passed = (reg_a == 0x5A) && zero_flag && !negative_flag;
+
+        std::cout << "Expected A: 0x5A, Got A: 0x" << std::hex << std::setw(2) << std::setfill('0') 
+                  << (int)reg_a << std::endl;
+        std::cout << "Z flag set? " << (zero_flag ? "yes" : "no") 
+                  << ", N flag cleared? " << (negative_flag ? "no" : "yes") << std::endl;
+
+        check_result("AND $1234", test_passed);
+    }
+    //Test ORA imm
+    void test_ora_imm(){
+        std::cout << "\n=== Testing ORA Immediate (0x09) ===" << std::endl;
+
+        // Clear memory
+        for (int i = 0; i < 100; ++i) {
+            cpu_i->memory_i->mem[i] = 0x00;
+        }
+
+        // Load instruction: LDA #0x0F; ORA #0xF0
+        uint8_t program[] = {0xA9, 0x0F, 0x09, 0xF0, 0x00};  // LDA #0x0F, ORA #0xF0, BRK
+        load_instruction(0x0000, program, 5);
+
+        // Reset and run
+        reset_cpu();
+        run_cycles(20);  
+
+        // Check results
+        uint8_t reg_a = cpu_i->regfile_i->A;
+        bool zero_flag = (cpu_i->regfile_i->P & 0x02) != 0;  // true if Z flag is set
+        bool negative_flag = (cpu_i->regfile_i->P & 0x80) != 0;
+        bool test_passed = (reg_a == 0xFF) && !zero_flag && negative_flag;  // Z should be clear (0), N should be set (1)
+
+        std::cout << "Expected A: 0xFF, Got A: 0x" << std::hex << std::setw(2) << std::setfill('0') 
+                  << (int)reg_a << std::endl;
+        std::cout << "Z flag set? " << (zero_flag ? "yes" : "no") 
+                  << ", N flag set? " << (negative_flag ? "yes" : "no") << std::endl;
+
+        check_result("ORA #$F0", test_passed);
+    }
+    //Test EOR imm (0x49)
+    void test_eor_imm(){
+        std::cout << "\n=== Testing EOR Immediate (0x49) ===" << std::endl;
+
+        // Clear memory
+        for (int i = 0; i < 100; ++i) {
+            cpu_i->memory_i->mem[i] = 0x00;
+        }
+
+        // Load instruction: LDA #0xFF; EOR #0x0F
+        uint8_t program[] = {0xA9, 0xFF, 0x49, 0x0F, 0x00};  // LDA #0xFF, EOR #0x0F, BRK
+        load_instruction(0x0000, program, 5);
+
+        // Reset and run
+        reset_cpu();
+        run_cycles(20);  
+
+        // Check results
+        uint8_t reg_a = cpu_i->regfile_i->A;
+        bool zero_flag = (cpu_i->regfile_i->P & 0x02) != 0;  // true if Z flag is set
+        bool negative_flag = (cpu_i->regfile_i->P & 0x80) != 0;
+        bool test_passed = (reg_a == 0xF0) && !zero_flag && negative_flag;  // Z should be clear (0), N should be set (1)
+
+        std::cout << "Expected A: 0xF0, Got A: 0x" << std::hex << std::setw(2) << std::setfill('0') 
+                  << (int)reg_a << std::endl;
+        std::cout << "Z flag set? " << (zero_flag ? "yes" : "no") 
+                  << ", N flag set? " << (negative_flag ? "yes" : "no") << std::endl;
+
+        check_result("EOR #$0F", test_passed);
+    }
+    
+
     // Main test runner
     void run_tests() {
         std::cout << "\n========================================" << std::endl;
@@ -899,6 +1055,12 @@ SC_MODULE(cpu_tb) {
         test_php();
         test_pla();
         test_plp();
+        test_and_imm();
+        test_and_zp();
+        test_and_abs();
+        test_ora_imm();
+        test_eor_imm();
+        
 
         
 
