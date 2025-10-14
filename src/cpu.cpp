@@ -361,7 +361,8 @@ void cpu::fetch_execute() {
 			// Fetch operand if needed (does not apply to STORE instructions)
 			if (needs_operand(ir_val) && !is_store_instruction(ir_val)) {
 				if (mode == IMMEDIATE || mode == ZERO_PAGE || mode == ZERO_PAGE_X || mode == ZERO_PAGE_Y ||
-					mode == ABSOLUTE || mode == ABSOLUTE_X || mode == ABSOLUTE_Y) {
+					mode == ABSOLUTE || mode == ABSOLUTE_X || mode == ABSOLUTE_Y ||
+					mode == INDIRECT_X || mode == INDIRECT_Y) {
 					operand = mem_r_data.read();
 					std::cout << "EXECUTE: Fetched operand 0x" << std::hex << (int)operand << " from address 0x" << (int)effective_addr << std::endl;
 				}

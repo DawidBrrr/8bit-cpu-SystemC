@@ -1018,7 +1018,153 @@ SC_MODULE(cpu_tb) {
 
         check_result("EOR #$0F", test_passed);
     }
-    
+
+    //Test ADC imm (0x69)
+    void test_adc_imm(){
+        std::cout << "\n=== Testing ADC Immediate (0x69) ===" << std::endl;
+
+        // Clear memory
+        for (int i = 0; i < 100; ++i) {
+            cpu_i->memory_i->mem[i] = 0x00;
+        }
+
+        // Load instruction: LDA #0x14; ADC #0x27
+        uint8_t program[] = {0xA9, 0x14, 0x69, 0x27, 0x00};  // LDA #0x14, ADC #0x27, BRK
+        load_instruction(0x0000, program, 5);
+
+        // Reset and run
+        reset_cpu();
+        run_cycles(20);  
+
+        // Check results
+        uint8_t reg_a = cpu_i->regfile_i->A;
+        bool zero_flag = (cpu_i->regfile_i->P & 0x02) != 0;  // true if Z flag is set
+        bool negative_flag = (cpu_i->regfile_i->P & 0x80) != 0;
+        bool carry_flag = (cpu_i->regfile_i->P & 0x01) != 0;
+        bool overflow_flag = (cpu_i->regfile_i->P & 0x40) != 0;
+        bool test_passed = (reg_a == 0x3B) && !zero_flag && !negative_flag && !carry_flag && !overflow_flag;
+
+        std::cout << "Expected A: 0x3B, Got A: 0x" << std::hex << std::setw(2) << std::setfill('0') 
+                  << (int)reg_a << std::endl;
+        std::cout << "Z flag set? " << (zero_flag ? "yes" : "no") 
+                  << ", N flag set? " << (negative_flag ? "yes" : "no") << std::endl;
+        std::cout << "C flag set? " << (carry_flag ? "yes" : "no") 
+                  << ", V flag set? " << (overflow_flag ? "yes" : "no") << std::endl;
+
+        check_result("ADC #$27", test_passed);
+
+
+    }
+    //Test ADC zp (0x65)
+    void test_adc_zp(){
+        std::cout << "\n=== Testing ADC Zero Page (0x65) ===" << std::endl;
+
+        // Clear memory
+        for (int i = 0; i < 100; ++i) {
+            cpu_i->memory_i->mem[i] = 0x00;
+        }
+        // Set memory location $20 to 0x30
+        cpu_i->memory_i->mem[0x20] = 0x30;
+
+        // Load instruction: LDA #0x10; ADC $20
+        uint8_t program[] = {0xA9, 0x10, 0x65, 0x20, 0x00};  // LDA #0x10, ADC $20, BRK
+        load_instruction(0x0000, program, 5);
+
+        // Reset and run
+        reset_cpu();
+        run_cycles(20);  
+
+        // Check results
+        uint8_t reg_a = cpu_i->regfile_i->A;
+        bool zero_flag = (cpu_i->regfile_i->P & 0x02) != 0;  // true if Z flag is set
+        bool negative_flag = (cpu_i->regfile_i->P & 0x80) != 0;
+        bool carry_flag = (cpu_i->regfile_i->P & 0x01) != 0;
+        bool overflow_flag = (cpu_i->regfile_i->P & 0x40) != 0;
+        bool test_passed = (reg_a == 0x40) && !zero_flag && !negative_flag && !carry_flag && !overflow_flag;
+
+        std::cout << "Expected A: 0x40, Got A: 0x" << std::hex << std::setw(2) << std::setfill('0') 
+                  << (int)reg_a << std::endl;
+        std::cout << "Z flag set? " << (zero_flag ? "yes" : "no") 
+                  << ", N flag set? " << (negative_flag ? "yes" : "no") << std::endl;
+        std::cout << "C flag set? " << (carry_flag ? "yes" : "no") 
+                  << ", V flag set? " << (overflow_flag ? "yes" : "no") << std::endl;
+
+        check_result("ADC $20", test_passed);
+    }
+    //Test ADC abs (0x6D)
+    void test_adc_abs(){
+        std::cout << "\n=== Testing ADC Absolute (0x6D) ===" << std::endl;
+
+        // Clear memory
+        for (int i = 0; i < 600; ++i) {
+            cpu_i->memory_i->mem[i] = 0x00;
+        }
+        // Set memory location $2000 to 0x50
+        cpu_i->memory_i->mem[0x2000] = 0x50;
+
+        // Load instruction: LDA #0x20; ADC $2000
+        uint8_t program[] = {0xA9, 0x20, 0x6D, 0x00, 0x20, 0x00};  // LDA #0x20, ADC $2000, BRK
+        load_instruction(0x0000, program, 6);
+
+        // Reset and run
+        reset_cpu();
+        run_cycles(25);  
+
+        // Check results
+        uint8_t reg_a = cpu_i->regfile_i->A;
+        bool zero_flag = (cpu_i->regfile_i->P & 0x02) != 0;  // true if Z flag is set
+        bool negative_flag = (cpu_i->regfile_i->P & 0x80) != 0;
+        bool carry_flag = (cpu_i->regfile_i->P & 0x01) != 0;
+        bool overflow_flag = (cpu_i->regfile_i->P & 0x40) != 0;
+        bool test_passed = (reg_a == 0x70) && !zero_flag && !negative_flag && !carry_flag && !overflow_flag;
+
+        std::cout << "Expected A: 0x70, Got A: 0x" << std::hex << std::setw(2) << std::setfill('0') 
+                  << (int)reg_a << std::endl;
+        std::cout << "Z flag set? " << (zero_flag ? "yes" : "no") 
+                  << ", N flag set? " << (negative_flag ? "yes" : "no") << std::endl;
+        std::cout << "C flag set? " << (carry_flag ? "yes" : "no") 
+                  << ", V flag set? " << (overflow_flag ? "yes" : "no") << std::endl;
+
+        check_result("ADC $2000", test_passed);
+    }
+    //Test ADC (ind,X) (0x61)
+    void test_adc_ind_x(){
+        std::cout << "\n=== Testing ADC (Indirect,X) (0x61) ===" << std::endl;
+
+        // Clear memory
+        for (int i = 0; i < 600; ++i) {
+            cpu_i->memory_i->mem[i] = 0x00;
+        }
+        // Set up indirect address
+        cpu_i->memory_i->mem[0x31] = 0x00;      // Low byte of effective address
+        cpu_i->memory_i->mem[0x32] = 0x20;      // High byte of effective address
+        cpu_i->memory_i->mem[0x2000] = 0x25;    // Value at effective address
+
+        // Load instruction: LDX #$01; STX $30; LDA #$10; ADC ($30,X)
+        uint8_t program[] = {0xA2, 0x01, 0x86, 0x30, 0xA9, 0x10, 0x61, 0x30, 0x00}; // LDX #$01, STX $30, LDA #$10, ADC ($30,X), BRK
+        load_instruction(0x0000, program, sizeof(program));
+
+        // Reset and run
+        reset_cpu();
+        run_cycles(40);  
+
+        // Check results
+        uint8_t reg_a = cpu_i->regfile_i->A;
+        bool zero_flag = (cpu_i->regfile_i->P & 0x02) != 0;  // true if Z flag is set
+        bool negative_flag = (cpu_i->regfile_i->P & 0x80) != 0;
+        bool carry_flag = (cpu_i->regfile_i->P & 0x01) != 0;
+        bool overflow_flag = (cpu_i->regfile_i->P & 0x40) != 0;
+        bool test_passed = (reg_a == 0x35) && !zero_flag && !negative_flag && !carry_flag && !overflow_flag;
+
+        std::cout << "Expected A: 0x35, Got A: 0x" << std::hex << std::setw(2) << std::setfill('0') 
+                  << (int)reg_a << std::endl;
+        std::cout << "Z flag set? " << (zero_flag ? "yes" : "no") 
+                  << ", N flag set? " << (negative_flag ? "yes" : "no") << std::endl;
+        std::cout << "C flag set? " << (carry_flag ? "yes" : "no") 
+                  << ", V flag set? " << (overflow_flag ? "yes" : "no") << std::endl;
+        check_result("ADC ($30,X)", test_passed);
+    }
+       
 
     // Main test runner
     void run_tests() {
@@ -1060,6 +1206,10 @@ SC_MODULE(cpu_tb) {
         test_and_abs();
         test_ora_imm();
         test_eor_imm();
+        test_adc_imm();
+        test_adc_zp();
+        test_adc_abs();
+        test_adc_ind_x();
         
 
         
