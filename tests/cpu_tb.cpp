@@ -1164,7 +1164,150 @@ SC_MODULE(cpu_tb) {
                   << ", V flag set? " << (overflow_flag ? "yes" : "no") << std::endl;
         check_result("ADC ($30,X)", test_passed);
     }
-       
+    //Test SBC #imm (0xE9)
+    void test_sbc_imm(){
+        std::cout << "\n=== Testing SBC Immediate (0xE9) ===" << std::endl;
+
+        // Clear memory
+        for (int i = 0; i < 100; ++i) {
+            cpu_i->memory_i->mem[i] = 0x00;
+        }
+
+        // Load instruction: LDA #0x50; SEC; SBC #0x20
+        uint8_t program[] = {0xA9, 0x50, 0x38, 0xE9, 0x20, 0x00};  // LDA #0x50, SEC, SBC #0x20, BRK
+        load_instruction(0x0000, program, 6);
+
+        // Reset and run
+        reset_cpu();
+        run_cycles(25);  
+
+        // Check results
+        uint8_t reg_a = cpu_i->regfile_i->A;
+        bool zero_flag = (cpu_i->regfile_i->P & 0x02) != 0;  // true if Z flag is set
+        bool negative_flag = (cpu_i->regfile_i->P & 0x80) != 0;
+        bool carry_flag = (cpu_i->regfile_i->P & 0x01) != 0;
+        bool overflow_flag = (cpu_i->regfile_i->P & 0x40) != 0;
+        bool test_passed = (reg_a == 0x30) && !zero_flag && !negative_flag && carry_flag && !overflow_flag;
+
+        std::cout << "Expected A: 0x30, Got A: 0x" << std::hex << std::setw(2) << std::setfill('0') 
+                  << (int)reg_a << std::endl;
+        std::cout << "Z flag set? " << (zero_flag ? "yes" : "no") 
+                  << ", N flag set? " << (negative_flag ? "yes" : "no") << std::endl;
+        std::cout << "C flag set? " << (carry_flag ? "yes" : "no") 
+                  << ", V flag set? " << (overflow_flag ? "yes" : "no") << std::endl;
+
+        check_result("SBC #$20", test_passed);
+    }
+    //Test SNC zp (0xE5)
+    void test_sbc_zp(){
+        std::cout << "\n=== Testing SBC Zero Page (0xE5) ===" << std::endl;
+
+        // Clear memory
+        for (int i = 0; i < 100; ++i) {
+            cpu_i->memory_i->mem[i] = 0x00;
+        }
+        // Set memory location $40 to 0x15
+        cpu_i->memory_i->mem[0x40] = 0x15;
+
+        // Load instruction: LDA #0x30; SEC; SBC $40
+        uint8_t program[] = {0xA9, 0x30, 0x38, 0xE5, 0x40, 0x00};  // LDA #0x30, SEC, SBC $40, BRK
+        load_instruction(0x0000, program, 6);
+
+        // Reset and run
+        reset_cpu();
+        run_cycles(25);  
+
+        // Check results
+        uint8_t reg_a = cpu_i->regfile_i->A;
+        bool zero_flag = (cpu_i->regfile_i->P & 0x02) != 0;  // true if Z flag is set
+        bool negative_flag = (cpu_i->regfile_i->P & 0x80) != 0;
+        bool carry_flag = (cpu_i->regfile_i->P & 0x01) != 0;
+        bool overflow_flag = (cpu_i->regfile_i->P & 0x40) != 0;
+        bool test_passed = (reg_a == 0x1B) && !zero_flag && !negative_flag && carry_flag && !overflow_flag;
+
+        std::cout << "Expected A: 0x1B, Got A: 0x" << std::hex << std::setw(2) << std::setfill('0') 
+                  << (int)reg_a << std::endl;
+        std::cout << "Z flag set? " << (zero_flag ? "yes" : "no") 
+                  << ", N flag set? " << (negative_flag ? "yes" : "no") << std::endl;
+        std::cout << "C flag set? " << (carry_flag ? "yes" : "no") 
+                  << ", V flag set? " << (overflow_flag ? "yes" : "no") << std::endl;
+
+        check_result("SBC $40", test_passed);
+    }
+    //Test SBC abs (0xED)
+    void test_sbc_abs(){
+        std::cout << "\n=== Testing SBC Absolute (0xED) ===" << std::endl;
+
+        // Clear memory
+        for (int i = 0; i < 600; ++i) {
+            cpu_i->memory_i->mem[i] = 0x00;
+        }
+        // Set memory location $3000 to 0x25
+        cpu_i->memory_i->mem[0x3000] = 0x25;
+
+        // Load instruction: LDA #0x50; SEC; SBC $3000
+        uint8_t program[] = {0xA9, 0x50, 0x38, 0xED, 0x00, 0x30, 0x00};  // LDA #0x50, SEC, SBC $3000, BRK
+        load_instruction(0x0000, program, 7);
+
+        // Reset and run
+        reset_cpu();
+        run_cycles(30);  
+
+        // Check results
+        uint8_t reg_a = cpu_i->regfile_i->A;
+        bool zero_flag = (cpu_i->regfile_i->P & 0x02) != 0;  // true if Z flag is set
+        bool negative_flag = (cpu_i->regfile_i->P & 0x80) != 0;
+        bool carry_flag = (cpu_i->regfile_i->P & 0x01) != 0;
+        bool overflow_flag = (cpu_i->regfile_i->P & 0x40) != 0;
+        bool test_passed = (reg_a == 0x2B) && !zero_flag && !negative_flag && carry_flag && !overflow_flag;
+
+        std::cout << "Expected A: 0x2B, Got A: 0x" << std::hex << std::setw(2) << std::setfill('0') 
+                  << (int)reg_a << std::endl;
+        std::cout << "Z flag set? " << (zero_flag ? "yes" : "no") 
+                  << ", N flag set? " << (negative_flag ? "yes" : "no") << std::endl;
+        std::cout << "C flag set? " << (carry_flag ? "yes" : "no") 
+                  << ", V flag set? " << (overflow_flag ? "yes" : "no") << std::endl;
+
+        check_result("SBC $3000", test_passed);
+    }
+    //Test SBC (ind,X) (0xE1)
+    void test_sbc_ind_x(){
+        std::cout << "\n=== Testing SBC (Indirect,X) (0xE1) ===" << std::endl;
+
+        // Clear memory
+        for (int i = 0; i < 600; ++i) {
+            cpu_i->memory_i->mem[i] = 0x00;
+        }
+        // Set up indirect address
+        cpu_i->memory_i->mem[0x41] = 0x00;      // Low byte of effective address
+        cpu_i->memory_i->mem[0x42] = 0x30;      // High byte of effective address
+        cpu_i->memory_i->mem[0x3000] = 0x10;    // Value at effective address
+
+        // Load instruction: LDX #$01; STX $40; LDA #$20; SEC; SBC ($40,X)
+        uint8_t program[] = {0xA2, 0x01, 0x86, 0x40, 0xA9, 0x20, 0xE1, 0x40, 0x00}; // LDX #$01, STX $40, LDA #$20, SEC, SBC ($40,X), BRK
+        load_instruction(0x0000, program, sizeof(program));
+
+        // Reset and run
+        reset_cpu();
+        run_cycles(40);  
+
+        // Check results
+        uint8_t reg_a = cpu_i->regfile_i->A;
+        bool zero_flag = (cpu_i->regfile_i->P & 0x02) != 0;  // true if Z flag is set
+        bool negative_flag = (cpu_i->regfile_i->P & 0x80) != 0;
+        bool carry_flag = (cpu_i->regfile_i->P & 0x01) != 0;
+        bool overflow_flag = (cpu_i->regfile_i->P & 0x40) != 0;
+        bool test_passed = (reg_a == 0x10) && !zero_flag && !negative_flag && carry_flag && !overflow_flag;
+
+        std::cout << "Expected A: 0x10, Got A: 0x" << std::hex << std::setw(2) << std::setfill('0') 
+                  << (int)reg_a << std::endl;
+        std::cout << "Z flag set? " << (zero_flag ? "yes" : "no") 
+                  << ", N flag set? " << (negative_flag ? "yes" : "no") << std::endl;
+        std::cout << "C flag set? " << (carry_flag ? "yes" : "no") 
+                  << ", V flag set? " << (overflow_flag ? "yes" : "no") << std::endl;
+
+        check_result("SBC ($40,X)", test_passed);
+    }
 
     // Main test runner
     void run_tests() {
@@ -1210,6 +1353,10 @@ SC_MODULE(cpu_tb) {
         test_adc_zp();
         test_adc_abs();
         test_adc_ind_x();
+        test_sbc_imm();
+        test_sbc_zp();
+        test_sbc_abs();
+        test_sbc_ind_x();
         
 
         

@@ -374,7 +374,7 @@ void cpu::fetch_execute() {
 			// Prepare ALU if needed (before writing to register)
 			if (alu_enable.read()) {
 				// NOTE: we cannot write to reg_r_addr - it is controlled by control_unit
-				bool carry_flag = alu_carry_in.read() != 0;
+				bool carry_flag = (regfile_i->P & 0x01) != 0;
 
 				// Set ALU parameters
 				if (alu_op.read() == 0xB) {
