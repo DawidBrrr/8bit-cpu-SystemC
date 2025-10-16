@@ -83,8 +83,30 @@ bool cpu::is_store_instruction(sc_uint<8> opcode) {
 
 bool cpu::is_read_modify_write_instruction(sc_uint<8> opcode) {
 	switch (opcode) {
+		case 0x06: case 0x16: case 0x0E: case 0x1E: // ASL variants
+		case 0x26: case 0x36: case 0x2E: case 0x3E: // ROL variants
+		case 0x46: case 0x56: case 0x4E: case 0x5E: // LSR variants
+		case 0x66: case 0x76: case 0x6E: case 0x7E: // ROR variants
 		case 0xC6: case 0xD6: case 0xCE: case 0xDE: // DEC variants
 		case 0xE6: case 0xF6: case 0xEE: case 0xFE: // INC variants
+			return true;
+		default:
+			return false;
+	}
+}
+
+bool cpu::instruction_updates_carry(sc_uint<8> opcode) {
+	switch (opcode) {
+		case 0x0A:
+		case 0x06: case 0x16: case 0x0E: case 0x1E:
+		case 0x4A:
+		case 0x46: case 0x56: case 0x4E: case 0x5E:
+		case 0x2A:
+		case 0x26: case 0x36: case 0x2E: case 0x3E:
+		case 0x6A:
+		case 0x66: case 0x76: case 0x6E: case 0x7E:
+		case 0x69: case 0x65: case 0x75: case 0x6D: case 0x7D: case 0x79: case 0x61: case 0x71: // ADC
+		case 0xE9: case 0xE5: case 0xF5: case 0xED: case 0xFD: case 0xF9: case 0xE1: case 0xF1: // SBC
 			return true;
 		default:
 			return false;
@@ -115,6 +137,7 @@ bool cpu::is_stack_pull_instruction(sc_uint<8> opcode) {
 void cpu::fetch_execute() {
 	// CPU controlls mem_we signal directly
 	mem_we.write(false);  // Default to no write
+	carry_update.write(false);
 	
 	if (reset.read()) {
 		state = FETCH;
@@ -480,6 +503,11 @@ void cpu::fetch_execute() {
 				std::cout << "WAIT_ALU: RMW - Writing 0x" << std::hex << (int)data_to_store
 						  << " to address 0x" << (int)effective_addr << std::endl;
 			}
+
+			if (instruction_updates_carry(ir_val)) {
+				carry_value.write(alu_carry.read());
+				carry_update.write(true);
+			}
 			
 			// Update PC
 			int instr_length = get_instruction_length(ir_val);
@@ -553,6 +581,8 @@ cpu::cpu(sc_module_name name) : sc_module(name) {
 	regfile_i->set_decimal(set_decimal);
 	regfile_i->clear_decimal(clear_decimal);
 	regfile_i->clear_overflow(clear_overflow);
+	regfile_i->carry_update(carry_update);
+	regfile_i->carry_value(carry_value);
 
 	// --- Memory connections ---
 	memory_i->clk(clk);

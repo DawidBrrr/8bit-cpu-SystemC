@@ -24,6 +24,8 @@ SC_MODULE(regfile) {
     sc_in<bool> set_decimal;       // set Decimal Mode flag
     sc_in<bool> clear_decimal;     // clear Decimal Mode flag
     sc_in<bool> clear_overflow;    // clear Overflow flag
+    sc_in<bool> carry_update;      // latch Carry flag from ALU
+    sc_in<bool> carry_value;       // Carry flag value from ALU
 
     // Rejestry 6502
     sc_uint<8> A; // accumulator
@@ -50,6 +52,14 @@ SC_MODULE(regfile) {
         // Update Z and N flags whenever requested
         if (set_flags.read()) {
             P = (P & ~0x82) | (zero.read() ? 0x02 : 0) | (negative.read() ? 0x80 : 0);
+        }
+
+        if (carry_update.read()) {
+            if (carry_value.read()) {
+                P |= 0x01;
+            } else {
+                P &= ~0x01;
+            }
         }
         
         // Signals for direct control of P flags
@@ -95,6 +105,6 @@ SC_MODULE(regfile) {
     SC_CTOR(regfile) : A(0), X(0), Y(0), S(0xFF), P(0x20) {
         SC_METHOD(process);
         sensitive << clk.pos() << set_carry << clear_carry << set_interrupt << clear_interrupt 
-                  << set_decimal << clear_decimal << clear_overflow;
+                  << set_decimal << clear_decimal << clear_overflow << carry_update << carry_value;
     }
 };
