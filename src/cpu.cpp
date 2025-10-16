@@ -81,6 +81,16 @@ bool cpu::is_store_instruction(sc_uint<8> opcode) {
     }
 }
 
+bool cpu::is_read_modify_write_instruction(sc_uint<8> opcode) {
+	switch (opcode) {
+		case 0xC6: case 0xD6: case 0xCE: case 0xDE: // DEC variants
+		case 0xE6: case 0xF6: case 0xEE: case 0xFE: // INC variants
+			return true;
+		default:
+			return false;
+	}
+}
+
 sc_uint<8> cpu::get_register_value(sc_uint<3> reg_index) {
 	switch (reg_index.to_uint()) {
 		case 0: return regfile_i->A;
@@ -387,8 +397,12 @@ void cpu::fetch_execute() {
 					alu_a.write(source_value);
 					alu_b.write(0);
 				} else {
-					alu_a.write(reg_a_val);     // For arithmetic/logic ops: use current A value
-					alu_b.write(operand);       // Operand from instruction
+					sc_uint<8> source_value = reg_a_val;
+					if (is_read_modify_write_instruction(ir_val)) {
+						source_value = operand; // Memory RMW operations use fetched operand
+					}
+					alu_a.write(source_value);
+					alu_b.write(operand);
 				}
 				alu_carry_in.write(carry_flag ? 1 : 0);  // Use true Carry flag
 
@@ -456,6 +470,15 @@ void cpu::fetch_execute() {
 				if (reg_w_addr.read() == 0) {
 					reg_a_val = data_to_write;
 				}
+			}
+
+			if (is_read_modify_write_instruction(ir_val)) {
+				sc_uint<8> data_to_store = alu_result.read();
+				mem_addr.write(effective_addr);
+				mem_w_data.write(data_to_store);
+				mem_we.write(true);
+				std::cout << "WAIT_ALU: RMW - Writing 0x" << std::hex << (int)data_to_store
+						  << " to address 0x" << (int)effective_addr << std::endl;
 			}
 			
 			// Update PC

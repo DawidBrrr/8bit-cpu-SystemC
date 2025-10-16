@@ -45,10 +45,11 @@ SC_MODULE(regfile) {
                 case 4: P = w_data.read(); std::cout << "REGFILE: P = 0x" << std::hex << (int)P << std::endl; break;
                 default: break;
             }
-            // Set Z and N flags if set_flags
-            if (set_flags.read()) {
-                P = (P & ~0x82) | (zero.read() ? 0x02 : 0) | (negative.read() ? 0x80 : 0);
-            }
+        }
+
+        // Update Z and N flags whenever requested
+        if (set_flags.read()) {
+            P = (P & ~0x82) | (zero.read() ? 0x02 : 0) | (negative.read() ? 0x80 : 0);
         }
         
         // Signals for direct control of P flags

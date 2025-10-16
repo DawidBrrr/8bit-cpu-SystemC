@@ -1309,6 +1309,138 @@ SC_MODULE(cpu_tb) {
         check_result("SBC ($40,X)", test_passed);
     }
 
+    //Test DEC zp (0xC6)
+    void test_dec_zp(){
+        std::cout << "\n=== Testing DEC Zero Page (0xC6) ===" << std::endl;
+
+        // Clear memory
+        for (int i = 0; i < 100; ++i) {
+            cpu_i->memory_i->mem[i] = 0x00;
+        }
+        // Set memory location $20 to 0x01
+        cpu_i->memory_i->mem[0x20] = 0x01;
+
+        // Load instruction: DEC $20
+        uint8_t program[] = {0xC6, 0x20, 0x00};  // DEC $20, BRK
+        load_instruction(0x0000, program, sizeof(program));
+
+        // Reset and run
+        reset_cpu();
+        run_cycles(20);
+
+        // Check results
+        uint8_t mem_val = cpu_i->memory_i->mem[0x20];
+        bool zero_flag = (cpu_i->regfile_i->P & 0x02) != 0;
+        bool negative_flag = (cpu_i->regfile_i->P & 0x80) != 0;
+        bool test_passed = (mem_val == 0x00) && zero_flag && !negative_flag;
+
+        std::cout << "Expected Mem[0x20]: 0x00, Got Mem[0x20]: 0x" << std::hex << std::setw(2) << std::setfill('0')
+                  << (int)mem_val << std::endl;
+        std::cout << "Z flag set? " << (zero_flag ? "yes" : "no")
+                  << ", N flag cleared? " << (negative_flag ? "no" : "yes") << std::endl;
+
+        check_result("DEC $20", test_passed);
+    }
+
+    //Test DEC abs (0xCE)
+    void test_dec_abs(){
+        std::cout << "\n=== Testing DEC Absolute (0xCE) ===" << std::endl;
+
+        // Clear memory
+        for (int i = 0; i < 600; ++i) {
+            cpu_i->memory_i->mem[i] = 0x00;
+        }
+        // Set memory location $3000 to 0x00
+        cpu_i->memory_i->mem[0x3000] = 0x00;
+
+        // Load instruction: DEC $3000
+        uint8_t program[] = {0xCE, 0x00, 0x30, 0x00};  // DEC $3000, BRK
+        load_instruction(0x0000, program, sizeof(program));
+
+        // Reset and run
+        reset_cpu();
+        run_cycles(25);
+
+        // Check results
+        uint8_t mem_val = cpu_i->memory_i->mem[0x3000];
+        bool zero_flag = (cpu_i->regfile_i->P & 0x02) != 0;
+        bool negative_flag = (cpu_i->regfile_i->P & 0x80) != 0;
+        bool test_passed = (mem_val == 0xFF) && !zero_flag && negative_flag;
+
+        std::cout << "Expected Mem[0x3000]: 0xFF, Got Mem[0x3000]: 0x" << std::hex << std::setw(2) << std::setfill('0')
+                  << (int)mem_val << std::endl;
+        std::cout << "Z flag set? " << (zero_flag ? "yes" : "no")
+                  << ", N flag set? " << (negative_flag ? "yes" : "no") << std::endl;
+
+        check_result("DEC $3000", test_passed);
+    }
+
+    //Test INC zp (0xE6)
+    void test_inc_zp(){
+        std::cout << "\n=== Testing INC Zero Page (0xE6) ===" << std::endl;
+
+        // Clear memory
+        for (int i = 0; i < 100; ++i) {
+            cpu_i->memory_i->mem[i] = 0x00;
+        }
+        // Set memory location $10 to 0x7F
+        cpu_i->memory_i->mem[0x10] = 0x7F;
+
+        // Load instruction: INC $10
+        uint8_t program[] = {0xE6, 0x10, 0x00};  // INC $10, BRK
+        load_instruction(0x0000, program, sizeof(program));
+
+        // Reset and run
+        reset_cpu();
+        run_cycles(20);
+
+        // Check results
+        uint8_t mem_val = cpu_i->memory_i->mem[0x10];
+        bool zero_flag = (cpu_i->regfile_i->P & 0x02) != 0;
+        bool negative_flag = (cpu_i->regfile_i->P & 0x80) != 0;
+        bool test_passed = (mem_val == 0x80) && !zero_flag && negative_flag;
+
+        std::cout << "Expected Mem[0x10]: 0x80, Got Mem[0x10]: 0x" << std::hex << std::setw(2) << std::setfill('0')
+                  << (int)mem_val << std::endl;
+        std::cout << "Z flag set? " << (zero_flag ? "yes" : "no")
+                  << ", N flag set? " << (negative_flag ? "yes" : "no") << std::endl;
+
+        check_result("INC $10", test_passed);
+    }
+
+    //Test INC abs (0xEE)
+    void test_inc_abs(){
+        std::cout << "\n=== Testing INC Absolute (0xEE) ===" << std::endl;
+
+        // Clear memory
+        for (int i = 0; i < 600; ++i) {
+            cpu_i->memory_i->mem[i] = 0x00;
+        }
+        // Set memory location $2000 to 0xFF
+        cpu_i->memory_i->mem[0x2000] = 0xFF;
+
+        // Load instruction: INC $2000
+        uint8_t program[] = {0xEE, 0x00, 0x20, 0x00};  // INC $2000, BRK
+        load_instruction(0x0000, program, sizeof(program));
+
+        // Reset and run
+        reset_cpu();
+        run_cycles(25);
+
+        // Check results
+        uint8_t mem_val = cpu_i->memory_i->mem[0x2000];
+        bool zero_flag = (cpu_i->regfile_i->P & 0x02) != 0;
+        bool negative_flag = (cpu_i->regfile_i->P & 0x80) != 0;
+        bool test_passed = (mem_val == 0x00) && zero_flag && !negative_flag;
+
+        std::cout << "Expected Mem[0x2000]: 0x00, Got Mem[0x2000]: 0x" << std::hex << std::setw(2) << std::setfill('0')
+                  << (int)mem_val << std::endl;
+        std::cout << "Z flag set? " << (zero_flag ? "yes" : "no")
+                  << ", N flag cleared? " << (negative_flag ? "no" : "yes") << std::endl;
+
+        check_result("INC $2000", test_passed);
+    }
+
     // Main test runner
     void run_tests() {
         std::cout << "\n========================================" << std::endl;
@@ -1357,6 +1489,10 @@ SC_MODULE(cpu_tb) {
         test_sbc_zp();
         test_sbc_abs();
         test_sbc_ind_x();
+    test_dec_zp();
+    test_dec_abs();
+    test_inc_zp();
+    test_inc_abs();
         
 
         
