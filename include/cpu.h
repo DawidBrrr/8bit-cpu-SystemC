@@ -33,6 +33,8 @@ SC_MODULE(cpu) {
     sc_signal<bool> set_interrupt, clear_interrupt;
     sc_signal<bool> set_decimal, clear_decimal;
     sc_signal<bool> clear_overflow;
+    sc_signal<bool> carry_update;
+    sc_signal<bool> carry_value;
 
     // Additional CPU signals
     sc_signal<sc_uint<8>> alu_a, alu_b, alu_result;
@@ -85,6 +87,8 @@ SC_MODULE(cpu) {
     int get_instruction_length(sc_uint<8> opcode);
     bool needs_operand(sc_uint<8> opcode);
     bool is_store_instruction(sc_uint<8> opcode);
+    bool is_read_modify_write_instruction(sc_uint<8> opcode);
+    bool instruction_updates_carry(sc_uint<8> opcode);
     sc_uint<8> get_register_value(sc_uint<3> reg_index);
     bool is_stack_push_instruction(sc_uint<8> opcode);
     bool is_stack_pull_instruction(sc_uint<8> opcode);

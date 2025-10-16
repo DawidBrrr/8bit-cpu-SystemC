@@ -81,6 +81,38 @@ bool cpu::is_store_instruction(sc_uint<8> opcode) {
     }
 }
 
+bool cpu::is_read_modify_write_instruction(sc_uint<8> opcode) {
+	switch (opcode) {
+		case 0x06: case 0x16: case 0x0E: case 0x1E: // ASL variants
+		case 0x26: case 0x36: case 0x2E: case 0x3E: // ROL variants
+		case 0x46: case 0x56: case 0x4E: case 0x5E: // LSR variants
+		case 0x66: case 0x76: case 0x6E: case 0x7E: // ROR variants
+		case 0xC6: case 0xD6: case 0xCE: case 0xDE: // DEC variants
+		case 0xE6: case 0xF6: case 0xEE: case 0xFE: // INC variants
+			return true;
+		default:
+			return false;
+	}
+}
+
+bool cpu::instruction_updates_carry(sc_uint<8> opcode) {
+	switch (opcode) {
+		case 0x0A:
+		case 0x06: case 0x16: case 0x0E: case 0x1E:
+		case 0x4A:
+		case 0x46: case 0x56: case 0x4E: case 0x5E:
+		case 0x2A:
+		case 0x26: case 0x36: case 0x2E: case 0x3E:
+		case 0x6A:
+		case 0x66: case 0x76: case 0x6E: case 0x7E:
+		case 0x69: case 0x65: case 0x75: case 0x6D: case 0x7D: case 0x79: case 0x61: case 0x71: // ADC
+		case 0xE9: case 0xE5: case 0xF5: case 0xED: case 0xFD: case 0xF9: case 0xE1: case 0xF1: // SBC
+			return true;
+		default:
+			return false;
+	}
+}
+
 sc_uint<8> cpu::get_register_value(sc_uint<3> reg_index) {
 	switch (reg_index.to_uint()) {
 		case 0: return regfile_i->A;
@@ -105,6 +137,7 @@ bool cpu::is_stack_pull_instruction(sc_uint<8> opcode) {
 void cpu::fetch_execute() {
 	// CPU controlls mem_we signal directly
 	mem_we.write(false);  // Default to no write
+	carry_update.write(false);
 	
 	if (reset.read()) {
 		state = FETCH;
@@ -215,7 +248,7 @@ void cpu::fetch_execute() {
 					effective_addr = (effective_addr + regfile_i->X) & 0xFF; // X register, wrap w zero page
 				} else if (mode == ZERO_PAGE_Y) {
 					// Fetch Y register (will need to add logic for reg_src)
-					effective_addr = (effective_addr + regfile_i->Y) & 0xFF; // TODO: add Y register
+					effective_addr = (effective_addr + regfile_i->Y) & 0xFF; 
 				}
 				if(mode == INDIRECT_X){
 					// add X to zero page address first
@@ -361,7 +394,8 @@ void cpu::fetch_execute() {
 			// Fetch operand if needed (does not apply to STORE instructions)
 			if (needs_operand(ir_val) && !is_store_instruction(ir_val)) {
 				if (mode == IMMEDIATE || mode == ZERO_PAGE || mode == ZERO_PAGE_X || mode == ZERO_PAGE_Y ||
-					mode == ABSOLUTE || mode == ABSOLUTE_X || mode == ABSOLUTE_Y) {
+					mode == ABSOLUTE || mode == ABSOLUTE_X || mode == ABSOLUTE_Y ||
+					mode == INDIRECT_X || mode == INDIRECT_Y) {
 					operand = mem_r_data.read();
 					std::cout << "EXECUTE: Fetched operand 0x" << std::hex << (int)operand << " from address 0x" << (int)effective_addr << std::endl;
 				}
@@ -373,7 +407,7 @@ void cpu::fetch_execute() {
 			// Prepare ALU if needed (before writing to register)
 			if (alu_enable.read()) {
 				// NOTE: we cannot write to reg_r_addr - it is controlled by control_unit
-				bool carry_flag = alu_carry_in.read() != 0;
+				bool carry_flag = (regfile_i->P & 0x01) != 0;
 
 				// Set ALU parameters
 				if (alu_op.read() == 0xB) {
@@ -386,8 +420,12 @@ void cpu::fetch_execute() {
 					alu_a.write(source_value);
 					alu_b.write(0);
 				} else {
-					alu_a.write(reg_a_val);     // For arithmetic/logic ops: use current A value
-					alu_b.write(operand);       // Operand from instruction
+					sc_uint<8> source_value = reg_a_val;
+					if (is_read_modify_write_instruction(ir_val)) {
+						source_value = operand; // Memory RMW operations use fetched operand
+					}
+					alu_a.write(source_value);
+					alu_b.write(operand);
 				}
 				alu_carry_in.write(carry_flag ? 1 : 0);  // Use true Carry flag
 
@@ -455,6 +493,20 @@ void cpu::fetch_execute() {
 				if (reg_w_addr.read() == 0) {
 					reg_a_val = data_to_write;
 				}
+			}
+
+			if (is_read_modify_write_instruction(ir_val)) {
+				sc_uint<8> data_to_store = alu_result.read();
+				mem_addr.write(effective_addr);
+				mem_w_data.write(data_to_store);
+				mem_we.write(true);
+				std::cout << "WAIT_ALU: RMW - Writing 0x" << std::hex << (int)data_to_store
+						  << " to address 0x" << (int)effective_addr << std::endl;
+			}
+
+			if (instruction_updates_carry(ir_val)) {
+				carry_value.write(alu_carry.read());
+				carry_update.write(true);
 			}
 			
 			// Update PC
@@ -529,6 +581,8 @@ cpu::cpu(sc_module_name name) : sc_module(name) {
 	regfile_i->set_decimal(set_decimal);
 	regfile_i->clear_decimal(clear_decimal);
 	regfile_i->clear_overflow(clear_overflow);
+	regfile_i->carry_update(carry_update);
+	regfile_i->carry_value(carry_value);
 
 	// --- Memory connections ---
 	memory_i->clk(clk);
