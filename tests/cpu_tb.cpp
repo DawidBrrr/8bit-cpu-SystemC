@@ -1797,6 +1797,92 @@ SC_MODULE(cpu_tb) {
         check_result("ROR $5000", test_passed);
     }
 
+    void test_jmp_abs(){
+        std::cout << "\n=== Testing JMP Absolute (0x4C) ===" << std::endl;
+
+        for (int i = 0; i < 0x0200; ++i) {
+            cpu_i->memory_i->mem[i] = 0x00;
+        }
+
+        uint8_t program[] = {0x4C, 0x10, 0x00};
+        load_instruction(0x0000, program, sizeof(program));
+
+        cpu_i->memory_i->mem[0x0010] = 0x00;
+
+        reset_cpu();
+        run_cycles(20);
+
+        uint16_t pc = cpu_i->pc_val.to_uint();
+        bool test_passed = (pc == 0x0010);
+
+        std::cout << "Expected PC: 0x0010, Got PC: 0x" << std::hex << std::setw(4) << std::setfill('0')
+                  << pc << std::dec << std::endl;
+
+        check_result("JMP $0010", test_passed);
+    }
+
+    void test_jmp_ind(){
+        std::cout << "\n=== Testing JMP Indirect (0x6C) ===" << std::endl;
+
+        for (int i = 0; i < 0x0300; ++i) {
+            cpu_i->memory_i->mem[i] = 0x00;
+        }
+
+        uint8_t program[] = {0x6C, 0x30, 0x00};
+        load_instruction(0x0000, program, sizeof(program));
+
+        cpu_i->memory_i->mem[0x0030] = 0x20;
+        cpu_i->memory_i->mem[0x0031] = 0x01;
+        cpu_i->memory_i->mem[0x0120] = 0x00;
+
+        reset_cpu();
+        run_cycles(25);
+
+        uint16_t pc = cpu_i->pc_val.to_uint();
+        bool test_passed = (pc == 0x0120);
+
+        std::cout << "Expected PC: 0x0120, Got PC: 0x" << std::hex << std::setw(4) << std::setfill('0')
+                  << pc << std::dec << std::endl;
+
+        check_result("JMP ($0030)", test_passed);
+    }
+
+    void test_jsr_abs(){
+        std::cout << "\n=== Testing JSR Absolute (0x20) ===" << std::endl;
+
+        for (int i = 0; i < 0x0200; ++i) {
+            cpu_i->memory_i->mem[i] = 0x00;
+        }
+
+        uint8_t program[] = {0x20, 0x10, 0x00};
+        load_instruction(0x0000, program, sizeof(program));
+
+        cpu_i->memory_i->mem[0x0010] = 0x00;
+
+        reset_cpu();
+        run_cycles(35);
+
+        uint16_t pc = cpu_i->pc_val.to_uint();
+        uint8_t sp = cpu_i->regfile_i->S;
+        uint8_t stack_high = cpu_i->memory_i->mem[0x01FF];
+        uint8_t stack_low = cpu_i->memory_i->mem[0x01FE];
+
+        bool pc_ok = (pc == 0x0010);
+        bool sp_ok = (sp == 0xFD);
+        bool stack_ok = (stack_high == 0x00) && (stack_low == 0x02);
+        bool test_passed = pc_ok && sp_ok && stack_ok;
+
+        std::cout << "Expected PC: 0x0010, Got PC: 0x" << std::hex << std::setw(4) << std::setfill('0')
+                  << pc << std::dec << std::endl;
+        std::cout << "Expected SP: 0xFD, Got SP: 0x" << std::hex << std::setw(2) << std::setfill('0')
+                  << (int)sp << std::dec << std::endl;
+        std::cout << "Stack[0x01FF]: 0x" << std::hex << std::setw(2) << std::setfill('0')
+                  << (int)stack_high << ", Stack[0x01FE]: 0x" << std::setw(2) << std::setfill('0')
+                  << (int)stack_low << std::dec << std::endl;
+
+        check_result("JSR $0010", test_passed);
+    }
+
     // Main test runner
     void run_tests() {
         std::cout << "\n========================================" << std::endl;
@@ -1845,22 +1931,25 @@ SC_MODULE(cpu_tb) {
         test_sbc_zp();
         test_sbc_abs();
         test_sbc_ind_x();
-    test_dec_zp();
-    test_dec_abs();
-    test_inc_zp();
-    test_inc_abs();
-    test_asl_a();
-    test_asl_zp();
-    test_asl_abs();
-    test_lsr_a();
-    test_lsr_zp();
-    test_lsr_abs();
-    test_rol_a();
-    test_rol_zp();
-    test_rol_abs();
-    test_ror_a();
-    test_ror_zp();
-    test_ror_abs();
+        test_dec_zp();
+        test_dec_abs();
+        test_inc_zp();
+        test_inc_abs();
+        test_asl_a();
+        test_asl_zp();
+        test_asl_abs();
+        test_lsr_a();
+        test_lsr_zp();
+        test_lsr_abs();
+        test_rol_a();
+        test_rol_zp();
+        test_rol_abs();
+        test_ror_a();
+        test_ror_zp();
+        test_ror_abs();
+        test_jmp_abs();
+        test_jmp_ind();
+        test_jsr_abs();
         
 
         
