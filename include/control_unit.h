@@ -51,6 +51,17 @@ SC_MODULE(control_unit) {
         set_decimal.write(false);
         clear_decimal.write(false);
         clear_overflow.write(false);
+        alu_op.write(0);
+        alu_enable.write(false);
+        set_flags.write(false);
+        reg_we.write(false);
+        reg_sel.write(0);
+        reg_src.write(0);
+        mem_we.write(false);
+        mem_oe.write(false);
+        pc_inc.write(true);
+        pc_load.write(false);
+        halt.write(false);
         
         switch(opcode.read()) {
             // --- Load/Store Operations ---
@@ -1637,18 +1648,14 @@ SC_MODULE(control_unit) {
                 Addressing mode: absolute
             */
                 pc_load.write(true);    // load new address to PC
-                // pc_new should be set by fetch/decode logic
                 pc_inc.write(false);    // do not increment PC
-                halt.write(false);
                 break;
             case 0x6C: /* JMP (ind) (Jump to Indirect Address)
                 PC = [ind]
                 Addressing mode: indirect
             */
                 pc_load.write(true);    // load new address to PC
-                // pc_new should be set by fetch/decode logic
                 pc_inc.write(false);    // do not increment PC
-                halt.write(false);
                 break;
             case 0x20: /* JSR abs (Jump to Subroutine)
                 Push (PC-1) to stack, PC = abs
@@ -1657,7 +1664,6 @@ SC_MODULE(control_unit) {
                 // Push (PC-1) to stack should be handled by control/stack logic
                 pc_load.write(true);    // load new address to PC
                 pc_inc.write(false);    // do not increment PC
-                halt.write(false);
                 break;
 
             // --- Branch Operations ---
