@@ -22,9 +22,9 @@ cpu::addressing_mode_t cpu::get_addressing_mode(sc_uint<8> opcode) {
             return ZERO_PAGE_Y;
             
         // Absolute
-        case 0xAD: case 0xAE: case 0xAC: case 0x8D: case 0x8E: case 0x8C: case 0x2D: case 0x0D: case 0x4D: case 0x6D:
-        case 0xED: case 0xCD: case 0xEC: case 0xCC: case 0x0E: case 0x4E: case 0x2E: case 0x6E: case 0xEE: case 0xCE:
-        case 0x20: case 0x4C: case 0x6C:
+		case 0xAD: case 0xAE: case 0xAC: case 0x8D: case 0x8E: case 0x8C: case 0x2D: case 0x0D: case 0x4D: case 0x6D:
+		case 0xED: case 0xCD: case 0xEC: case 0xCC: case 0x0E: case 0x4E: case 0x2E: case 0x6E: case 0xEE: case 0xCE:
+		case 0x20: case 0x4C:
             return ABSOLUTE;
             
         // Absolute,X
@@ -36,6 +36,9 @@ cpu::addressing_mode_t cpu::get_addressing_mode(sc_uint<8> opcode) {
         case 0xB9: case 0x99: case 0x39: case 0x19: case 0x59: case 0x79: case 0xF9: case 0xD9: case 0xBE:
             return ABSOLUTE_Y;
             
+		case 0x6C:
+			return INDIRECT;
+
         // (Zero Page,X)
         case 0xA1: case 0x81: case 0x21: case 0x01: case 0x41: case 0x61: case 0xE1: case 0xC1:
             return INDIRECT_X;
@@ -56,13 +59,20 @@ int cpu::get_instruction_length(sc_uint<8> opcode) {
         case IMPLIED: return 1;
         case IMMEDIATE: case ZERO_PAGE: case ZERO_PAGE_X: case ZERO_PAGE_Y: 
         case INDIRECT_X: case INDIRECT_Y: return 2;
-        case ABSOLUTE: case ABSOLUTE_X: case ABSOLUTE_Y: return 3;
+	case ABSOLUTE: case ABSOLUTE_X: case ABSOLUTE_Y: case INDIRECT: return 3;
         default: return 1;
     }
 }
 
 bool cpu::needs_operand(sc_uint<8> opcode) {
-    return get_addressing_mode(opcode) != IMPLIED;
+	switch (opcode) {
+		case 0x4C: // JMP abs
+		case 0x6C: // JMP (ind)
+		case 0x20: // JSR abs
+			return false;
+		default:
+			return get_addressing_mode(opcode) != IMPLIED;
+	}
 }
 
 bool cpu::is_store_instruction(sc_uint<8> opcode) {
@@ -145,6 +155,12 @@ void cpu::fetch_execute() {
 		ir_val = 0x00;
 		operand = 0x00;
 		effective_addr = 0x0000;
+		pointer_address = 0x0000;
+		pointer_low = 0x00;
+		jsr_return_address = 0x0000;
+		pc_override_pending = false;
+		pc_override_value = 0x0000;
+		regfile_i->S = 0xFF; // Reset stack pointer to top of stack
 		pc.write(pc_val);
 		ir.write(ir_val);
 		stack_data_ready = false;
@@ -205,6 +221,7 @@ void cpu::fetch_execute() {
 				case ABSOLUTE:
 				case ABSOLUTE_X:
 				case ABSOLUTE_Y:
+				case INDIRECT:
 					// 2 bytes address (LSB first)
 					//std::cout << "DECODE: ABSOLUTE addressing, przejscie do FETCH_ADDR_LOW" << std::endl;
 					mem_addr.write(pc_val + 1);
@@ -235,7 +252,7 @@ void cpu::fetch_execute() {
 			addressing_mode_t mode = get_addressing_mode(ir_val);
 			//std::cout << "PROCESS_ADDR_LOW: Fetched addr_low=0x" << std::hex << (int)addr_low << " mode=" << mode << std::endl;
 
-			if (mode == ABSOLUTE || mode == ABSOLUTE_X || mode == ABSOLUTE_Y) {
+			if (mode == ABSOLUTE || mode == ABSOLUTE_X || mode == ABSOLUTE_Y || mode == INDIRECT) {
 				// For absolute we need MSB
 				effective_addr = addr_low; // Temporarily store LSB
 				mem_addr.write(pc_val + 2);
@@ -282,7 +299,12 @@ void cpu::fetch_execute() {
 			addressing_mode_t mode = get_addressing_mode(ir_val);
 			//std::cout << "PROCESS_ADDR_HIGH: Fetched addr_high=0x" << std::hex << (int)addr_high << " mode=" << mode << std::endl;
 			
-			if (mode == ABSOLUTE || mode == ABSOLUTE_X || mode == ABSOLUTE_Y) {
+			if (mode == INDIRECT) {
+				// Form pointer address and start fetching target
+				pointer_address = (effective_addr | (addr_high << 8));
+				mem_addr.write(pointer_address);
+				state = FETCH_INDIRECT_PTR_LOW;
+			} else if(mode == ABSOLUTE || mode == ABSOLUTE_X || mode == ABSOLUTE_Y) {
 				// Assemble full 16-bit address
 				effective_addr = effective_addr | (addr_high << 8);
 				
@@ -293,9 +315,14 @@ void cpu::fetch_execute() {
 					effective_addr += regfile_i->Y;
 				}
 				
-				// Set memory address for operand fetch
-				mem_addr.write(effective_addr);
-				state = WAIT_OPERAND;
+				if (mode == ABSOLUTE && (ir_val == 0x4C || ir_val == 0x20)) {
+					// JMP abs and JSR abs do not read through target address here
+					state = EXECUTE;
+				} else {
+					// Set memory address for operand fetch
+					mem_addr.write(effective_addr);
+					state = WAIT_OPERAND;
+				}
 			} else if(mode == INDIRECT_X){
 				// For(ind,X) read low byte of pointer, now get the high byte
 				sc_uint<8> ptr_low = addr_high; // low byte from previous read
@@ -344,17 +371,64 @@ void cpu::fetch_execute() {
 			state = WAIT_OPERAND;
 			break;
 		}
+		case FETCH_INDIRECT_PTR_LOW: {
+			// Wait one cycle to read target low byte through absolute indirect
+			state = PROCESS_INDIRECT_PTR_LOW;
+			break;
+		}
+		case PROCESS_INDIRECT_PTR_LOW: {
+			pointer_low = mem_r_data.read();
+			mem_addr.write(pointer_address + 1);
+			state = FETCH_INDIRECT_PTR_HIGH;
+			break;
+		}
+		case FETCH_INDIRECT_PTR_HIGH: {
+			// Wait one cycle to read target high byte through absolute indirect
+			state = PROCESS_INDIRECT_PTR_HIGH;
+			break;
+		}
+		case PROCESS_INDIRECT_PTR_HIGH: {
+			sc_uint<8> ptr_high = mem_r_data.read();
+			effective_addr = pointer_low | (ptr_high << 8);
+			state = EXECUTE;
+			break;
+		}
 		case EXECUTE: {
 			addressing_mode_t mode = get_addressing_mode(ir_val);
 			auto advance_pc = [&]() {
 				int instr_length = get_instruction_length(ir_val);
-				if (pc_load.read()) {
+				if (pc_override_pending) {
+					pc_val = pc_override_value;
+					pc_override_pending = false;
+				} else if (pc_load.read()) {
 					pc_val = pc_new.read();
 				} else if (pc_inc.read()) {
 					pc_val = pc_val + instr_length;
 				}
 				pc.write(pc_val);
 			};
+
+			bool is_jmp_abs = (ir_val == 0x4C);
+			bool is_jmp_ind = (ir_val == 0x6C);
+			bool is_jsr = (ir_val == 0x20);
+
+			if (is_jmp_abs || is_jmp_ind) {
+				pc_override_pending = true;
+				pc_override_value = effective_addr;
+				advance_pc();
+				stack_data_ready = false;
+				state = FETCH;
+				break;
+			}
+
+			if (is_jsr) {
+				pc_override_pending = true;
+				pc_override_value = effective_addr;
+				jsr_return_address = pc_val + get_instruction_length(ir_val) - 1;
+				stack_data_ready = false;
+				state = JSR_PUSH_HIGH;
+				break;
+			}
 
 			bool is_push = is_stack_push_instruction(ir_val);
 			bool is_pull = is_stack_pull_instruction(ir_val);
@@ -511,7 +585,10 @@ void cpu::fetch_execute() {
 			
 			// Update PC
 			int instr_length = get_instruction_length(ir_val);
-			if (pc_load.read()) {
+			if (pc_override_pending) {
+				pc_val = pc_override_value;
+				pc_override_pending = false;
+			} else if (pc_load.read()) {
 				pc_val = pc_new.read();
 			} else if (pc_inc.read()) {
 				pc_val = pc_val + instr_length;
@@ -537,6 +614,37 @@ void cpu::fetch_execute() {
 			}
 			stack_data_ready = true;
 			state = EXECUTE;
+			break;
+		}
+		case JSR_PUSH_HIGH: {
+			sc_uint<16> stack_addr = 0x0100;
+			stack_addr += regfile_i->S;
+			mem_addr.write(stack_addr);
+			mem_w_data.write(sc_uint<8>((jsr_return_address >> 8) & 0xFF));
+			mem_we.write(true);
+			regfile_i->S = regfile_i->S - 1;
+			state = JSR_PUSH_LOW;
+			break;
+		}
+		case JSR_PUSH_LOW: {
+			sc_uint<16> stack_addr = 0x0100;
+			stack_addr += regfile_i->S;
+			mem_addr.write(stack_addr);
+			mem_w_data.write(sc_uint<8>(jsr_return_address & 0xFF));
+			mem_we.write(true);
+			regfile_i->S = regfile_i->S - 1;
+			state = JSR_COMPLETE;
+			break;
+		}
+		case JSR_COMPLETE: {
+			mem_we.write(false);
+			if (pc_override_pending) {
+				pc_val = pc_override_value;
+				pc_override_pending = false;
+			}
+			pc.write(pc_val);
+			stack_data_ready = false;
+			state = FETCH;
 			break;
 		}
 	}

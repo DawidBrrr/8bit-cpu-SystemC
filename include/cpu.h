@@ -56,7 +56,7 @@ SC_MODULE(cpu) {
 
 
     // --- fetch/execute fields ---
-    enum cpu_state_t { FETCH, WAIT_INSTRUCTION, DECODE, WAIT_OPERAND, FETCH_ADDR_LOW, PROCESS_ADDR_LOW, FETCH_ADDR_HIGH, PROCESS_ADDR_HIGH, FETCH_INDIRECT_HIGH, PROCESS_INDIRECT_HIGH, EXECUTE, WAIT_ALU, STACK_PULL_WAIT, STACK_PULL_FETCH };
+    enum cpu_state_t { FETCH, WAIT_INSTRUCTION, DECODE, WAIT_OPERAND, FETCH_ADDR_LOW, PROCESS_ADDR_LOW, FETCH_ADDR_HIGH, PROCESS_ADDR_HIGH, FETCH_INDIRECT_HIGH, PROCESS_INDIRECT_HIGH, FETCH_INDIRECT_PTR_LOW, PROCESS_INDIRECT_PTR_LOW, FETCH_INDIRECT_PTR_HIGH, PROCESS_INDIRECT_PTR_HIGH, EXECUTE, WAIT_ALU, STACK_PULL_WAIT, STACK_PULL_FETCH, JSR_PUSH_HIGH, JSR_PUSH_LOW, JSR_COMPLETE };
     cpu_state_t state = FETCH;
     
     // Addressing modes
@@ -69,6 +69,7 @@ SC_MODULE(cpu) {
         ABSOLUTE,    // LDA $1234
         ABSOLUTE_X,  // LDA $1234,X
         ABSOLUTE_Y,  // LDA $1234,Y
+        INDIRECT,    // JMP ($1234)
         INDIRECT_X,  // LDA ($42,X)
         INDIRECT_Y   // LDA ($42),Y
     };
@@ -79,6 +80,11 @@ SC_MODULE(cpu) {
     sc_uint<16> effective_addr = 0x0000; // Effective address for complex addressing
     sc_uint<8> reg_a_val = 0x00; // Track value of register A
     bool stack_data_ready = false;
+    sc_uint<16> pointer_address = 0x0000; // Holds pointer base for indirect addressing
+    sc_uint<8> pointer_low = 0x00;        // Low byte temporary storage for indirect fetches
+    sc_uint<16> jsr_return_address = 0x0000; // Return address for JSR
+    bool pc_override_pending = false;     // Indicates pending PC override (jump/subroutine)
+    sc_uint<16> pc_override_value = 0x0000; // New PC value when override is active
 
     void fetch_execute();
     
