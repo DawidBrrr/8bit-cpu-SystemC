@@ -1,0 +1,53 @@
+# Program: Fibonacci Sequence Generator (Using JMP and JSR)
+# Generates first 10 Fibonacci numbers and outputs them to PORT 0 (decimal)
+# Uses a subroutine to calculate and output each Fibonacci number
+# Memory layout:
+#   0x50 - FIB_A (current Fibonacci number)
+#   0x51 - FIB_B (next Fibonacci number)
+
+# Initialize FIB_A = 0
+A9 00    # LDA #0x00
+85 50    # STA $50
+
+# Initialize FIB_B = 1
+A9 01    # LDA #0x01
+85 51    # STA $51
+
+# Call subroutine 10 times (unrolled)
+20 27 00 # JSR $0027 (call iteration 1)
+20 27 00 # JSR $0027 (call iteration 2)
+20 27 00 # JSR $0027 (call iteration 3)
+20 27 00 # JSR $0027 (call iteration 4)
+20 27 00 # JSR $0027 (call iteration 5)
+20 27 00 # JSR $0027 (call iteration 6)
+20 27 00 # JSR $0027 (call iteration 7)
+20 27 00 # JSR $0027 (call iteration 8)
+20 27 00 # JSR $0027 (call iteration 9)
+20 27 00 # JSR $0027 (call iteration 10)
+
+# Halt
+00       # BRK
+
+# SUBROUTINE at address 0x001E: Calculate and output one Fibonacci number
+# Output current FIB_A to PORT 0
+A5 50    # LDA $50
+8D 00 FF # STA $FF00 (output as decimal)
+A9 20    # LDA #0x20 (ASCII space separator)
+8D 02 FF # STA $FF02 (output as character)
+
+# Calculate next: temp = FIB_A + FIB_B
+A5 50    # LDA $50 (load FIB_A)
+18       # CLC (clear carry before addition)
+65 51    # ADC $51 (add FIB_B)
+48       # PHA (push result to stack)
+
+# Shift: FIB_A = FIB_B
+A5 51    # LDA $51
+85 50    # STA $50
+
+# Shift: FIB_B = result (from stack)
+68       # PLA (pull result from stack)
+85 51    # STA $51
+
+# Return from subroutine
+60       # RTS

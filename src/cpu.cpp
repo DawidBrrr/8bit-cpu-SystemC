@@ -158,6 +158,8 @@ void cpu::fetch_execute() {
 		pointer_address = 0x0000;
 		pointer_low = 0x00;
 		jsr_return_address = 0x0000;
+		rts_low = 0x00;
+		rts_high = 0x00;
 		pc_override_pending = false;
 		pc_override_value = 0x0000;
 		regfile_i->S = 0xFF; // Reset stack pointer to top of stack
@@ -411,6 +413,7 @@ void cpu::fetch_execute() {
 			bool is_jmp_abs = (ir_val == 0x4C);
 			bool is_jmp_ind = (ir_val == 0x6C);
 			bool is_jsr = (ir_val == 0x20);
+			bool is_rts = (ir_val == 0x60);
 
 			if (is_jmp_abs || is_jmp_ind) {
 				pc_override_pending = true;
@@ -427,6 +430,18 @@ void cpu::fetch_execute() {
 				jsr_return_address = pc_val + get_instruction_length(ir_val) - 1;
 				stack_data_ready = false;
 				state = JSR_PUSH_HIGH;
+				break;
+			}
+
+			if (is_rts) {
+				sc_uint<8> new_sp = regfile_i->S + 1;
+				regfile_i->S = new_sp;
+				sc_uint<16> stack_addr = 0x0100;
+				stack_addr += new_sp;
+				mem_addr.write(stack_addr);
+				state = RTS_PULL_LOW_WAIT;
+				stack_data_ready = false;
+				pc_override_pending = false;
 				break;
 			}
 
@@ -614,6 +629,39 @@ void cpu::fetch_execute() {
 			}
 			stack_data_ready = true;
 			state = EXECUTE;
+			break;
+		}
+		case RTS_PULL_LOW_WAIT:
+			mem_we.write(false);
+			state = RTS_PULL_LOW_FETCH;
+			break;
+		case RTS_PULL_LOW_FETCH: {
+			rts_low = mem_r_data.read();
+			sc_uint<8> new_sp = regfile_i->S + 1;
+			regfile_i->S = new_sp;
+			sc_uint<16> stack_addr = 0x0100;
+			stack_addr += new_sp;
+			mem_addr.write(stack_addr);
+			state = RTS_PULL_HIGH_WAIT;
+			break;
+		}
+		case RTS_PULL_HIGH_WAIT:
+			mem_we.write(false);
+			state = RTS_PULL_HIGH_FETCH;
+			break;
+		case RTS_PULL_HIGH_FETCH: {
+			rts_high = mem_r_data.read();
+			state = RTS_APPLY;
+			break;
+		}
+		case RTS_APPLY: {
+			sc_uint<16> return_addr = (sc_uint<16>(rts_high) << 8) | sc_uint<16>(rts_low);
+			return_addr = return_addr + 1;
+			pc_val = return_addr;
+			pc.write(pc_val);
+			mem_we.write(false);
+			stack_data_ready = false;
+			state = FETCH;
 			break;
 		}
 		case JSR_PUSH_HIGH: {

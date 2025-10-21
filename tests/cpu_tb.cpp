@@ -1796,7 +1796,7 @@ SC_MODULE(cpu_tb) {
 
         check_result("ROR $5000", test_passed);
     }
-
+    // TEST JMP abs (0x4C)
     void test_jmp_abs(){
         std::cout << "\n=== Testing JMP Absolute (0x4C) ===" << std::endl;
 
@@ -1820,7 +1820,7 @@ SC_MODULE(cpu_tb) {
 
         check_result("JMP $0010", test_passed);
     }
-
+    // TEST JMP ind (0x6C)
     void test_jmp_ind(){
         std::cout << "\n=== Testing JMP Indirect (0x6C) ===" << std::endl;
 
@@ -1846,7 +1846,7 @@ SC_MODULE(cpu_tb) {
 
         check_result("JMP ($0030)", test_passed);
     }
-
+    // Test JSR abs (0x20)
     void test_jsr_abs(){
         std::cout << "\n=== Testing JSR Absolute (0x20) ===" << std::endl;
 
@@ -1881,6 +1881,36 @@ SC_MODULE(cpu_tb) {
                   << (int)stack_low << std::dec << std::endl;
 
         check_result("JSR $0010", test_passed);
+    }
+    // Test RTS abs (0x60)
+    void test_rts_abs(){
+        std::cout << "\n=== Testing RTS (0x60) ===" << std::endl;
+
+        for (int i = 0; i < 0x0300; ++i) {
+            cpu_i->memory_i->mem[i] = 0x00;
+        }
+
+    uint8_t program[] = {0x20, 0x10, 0x00, 0x00};
+        load_instruction(0x0000, program, sizeof(program));
+
+    cpu_i->memory_i->mem[0x0010] = 0x60; // Subroutine immediately returns
+
+        reset_cpu();
+        run_cycles(50);
+
+        uint16_t pc = cpu_i->pc_val.to_uint();
+        uint8_t sp = cpu_i->regfile_i->S;
+
+        bool pc_ok = (pc == 0x0003);
+        bool sp_ok = (sp == 0xFF);
+        bool test_passed = pc_ok && sp_ok;
+
+        std::cout << "Expected PC: 0x0003, Got PC: 0x" << std::hex << std::setw(4) << std::setfill('0')
+                  << pc << std::dec << std::endl;
+        std::cout << "Expected SP: 0xFF, Got SP: 0x" << std::hex << std::setw(2) << std::setfill('0')
+                  << (int)sp << std::dec << std::endl;
+
+        check_result("RTS", test_passed);
     }
 
     // Main test runner
@@ -1950,6 +1980,7 @@ SC_MODULE(cpu_tb) {
         test_jmp_abs();
         test_jmp_ind();
         test_jsr_abs();
+        test_rts_abs();
         
 
         

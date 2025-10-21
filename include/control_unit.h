@@ -1828,9 +1828,8 @@ SC_MODULE(control_unit) {
             case 0x60: /* RTS (Return from Subroutine)
                 PC = (pop from stack) + 1
             */
-                pc_load.write(true);    // load PC from stack
-                halt.write(false);
-                // ...logic for reading PC from stack and incrementing...
+                mem_oe.write(true);     // read from stack
+                pc_inc.write(false);    // PC handled by CPU logic
                 break;
 
             // --- Comparison Operations ---            
