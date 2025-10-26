@@ -112,6 +112,7 @@ SC_MODULE(cpu) {
     sc_uint<8> rts_high = 0x00;           // High byte of return address for RTS
     bool pc_override_pending = false;     // Indicates pending PC override (jump/subroutine)
     sc_uint<16> pc_override_value = 0x0000; // New PC value when override is active
+    bool halted = false;                  // Indicates BRK or external halt
 
     void fetch_execute();
     

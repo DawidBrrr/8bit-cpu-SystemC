@@ -9,13 +9,15 @@ add_executable(cpu_gui
     ${IMGUI_SOURCES}
 )
 
+target_sources(cpu_gui PRIVATE ${CPU_SRC_FILES})
+
 target_include_directories(cpu_gui PRIVATE
     ${CMAKE_SOURCE_DIR}/include
     ${CMAKE_SOURCE_DIR}/frontend/include
     ${CMAKE_SOURCE_DIR}/frontend
     ${IMGUI_DIR}
     ${IMGUI_DIR}/backends
-)
+    ${systemc_SOURCE_DIR}/src
 )
 
 target_link_libraries(cpu_gui PRIVATE

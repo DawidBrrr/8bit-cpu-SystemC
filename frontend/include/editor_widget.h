@@ -7,7 +7,7 @@ public:
     EditorWidget();
     void Render();
     
-    const std::string& GetCode() const { return code_buffer; }
+    std::string GetCode() const { return std::string(code_buffer); }
     void SetCode(const std::string& code);
     void LoadFromFile(const char* filepath);
     void SaveToFile(const char* filepath);

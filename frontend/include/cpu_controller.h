@@ -4,6 +4,9 @@
 #include <string>
 #include <thread>
 #include <atomic>
+#include <vector>
+#include <mutex>
+#include <condition_variable>
 
 class CPUController {
 public:
@@ -27,9 +30,19 @@ private:
     sc_signal<bool> reset;
     
     std::atomic<bool> is_running;
-    std::thread* sim_thread;
+    std::thread sim_thread;
+    std::atomic<bool> thread_shutdown;
+    bool systemc_initialized;
+    int pending_cycles;
+
+    std::mutex sim_mutex;
+    std::condition_variable sim_cv;
+    std::condition_variable step_done_cv;
     
     void SimulationThread();
     void InitializeSystemC();
     void CleanupSystemC();
+    void EnsureSimulationThread();
+    void RunCycles(int cycles);
+    std::vector<uint8_t> ParseProgram(const std::string& code);
 };
