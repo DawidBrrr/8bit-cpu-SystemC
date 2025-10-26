@@ -90,6 +90,7 @@ int main(int, char**)
             }
         } else {
             if (ImGui::Button("Play")) {
+                cpuViewer.ClearIO();
                 cpuController.LoadProgram(editor.GetCode());
                 cpuController.Start();
             }
@@ -102,6 +103,7 @@ int main(int, char**)
         
         ImGui::SameLine();
         if (ImGui::Button("Reset")) {
+            cpuViewer.ClearIO();
             cpuController.Reset();
         }
         
@@ -114,6 +116,9 @@ int main(int, char**)
             uint16_t pc;
             cpuController.GetCPUState(a, x, y, s, p, pc);
             cpuViewer.UpdateState(a, x, y, s, p, pc);
+            cpuViewer.AppendIO(cpuController.ConsumeIOBuffer());
+        } else {
+            cpuViewer.AppendIO(cpuController.ConsumeIOBuffer());
         }
         
         ImGui::End();

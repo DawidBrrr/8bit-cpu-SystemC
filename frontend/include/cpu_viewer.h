@@ -1,6 +1,7 @@
 #pragma once
 #include "imgui.h"
 #include <cstdint>
+#include <string>
 
 class CPUViewer {
 public:
@@ -10,6 +11,8 @@ public:
     // Update CPU state from simulator
     void UpdateState(uint8_t a, uint8_t x, uint8_t y, uint8_t s, uint8_t p, uint16_t pc);
     void UpdateFlags(bool c, bool z, bool i, bool d, bool b, bool v, bool n);
+    void AppendIO(const std::string& text);
+    void ClearIO();
     
 private:
     // CPU Registers
@@ -28,6 +31,9 @@ private:
     bool flag_B; // Break
     bool flag_V; // Overflow
     bool flag_N; // Negative
+
+    std::string io_log;
+    void RenderIOWindow();
     
     void RenderRegisters();
     void RenderFlags();

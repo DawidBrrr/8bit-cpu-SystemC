@@ -21,7 +21,8 @@ CPUController::CPUController()
       sim_thread(),
       thread_shutdown(false),
       systemc_initialized(false),
-      pending_cycles(0) {
+    pending_cycles(0),
+    io_buffer() {
     reset.write(false);
     InitializeSystemC();
     EnsureSimulationThread();
@@ -56,6 +57,8 @@ void CPUController::LoadProgram(const std::string& code) {
         for (size_t i = 0; i < 65536; ++i) {
             cpu_instance->memory_i->mem[i] = 0;
         }
+        cpu_instance->memory_i->io_buffer.clear();
+        io_buffer.clear();
 
         for (size_t i = 0; i < program_bytes.size(); ++i) {
             size_t target = static_cast<size_t>(kProgramBaseAddress) + i;
@@ -121,6 +124,10 @@ void CPUController::Reset() {
     {
         std::lock_guard<std::mutex> lock(sim_mutex);
         reset.write(true);
+        io_buffer.clear();
+        if (cpu_instance && cpu_instance->memory_i) {
+            cpu_instance->memory_i->io_buffer.clear();
+        }
     }
 
     RunCycles(kResetPulseCycles);
@@ -322,6 +329,13 @@ void CPUController::SimulationThread() {
             lock.unlock();
             sc_core::sc_start(kCycleTime);
             lock.lock();
+            if (cpu_instance && cpu_instance->memory_i) {
+                std::string& io_stream = cpu_instance->memory_i->io_buffer;
+                if (!io_stream.empty()) {
+                    io_buffer.append(io_stream);
+                    io_stream.clear();
+                }
+            }
             if (pending_cycles > 0) {
                 --pending_cycles;
             }
@@ -342,6 +356,13 @@ void CPUController::SimulationThread() {
             lock.unlock();
             sc_core::sc_start(kCycleTime);
             lock.lock();
+            if (cpu_instance && cpu_instance->memory_i) {
+                std::string& io_stream = cpu_instance->memory_i->io_buffer;
+                if (!io_stream.empty()) {
+                    io_buffer.append(io_stream);
+                    io_stream.clear();
+                }
+            }
             if (cpu_instance && cpu_instance->halted) {
                 is_running.store(false);
                 pending_cycles = 0;
@@ -349,4 +370,11 @@ void CPUController::SimulationThread() {
             }
         }
     }
+}
+
+std::string CPUController::ConsumeIOBuffer() {
+    std::lock_guard<std::mutex> lock(sim_mutex);
+    std::string data = io_buffer;
+    io_buffer.clear();
+    return data;
 }

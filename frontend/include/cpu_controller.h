@@ -23,6 +23,7 @@ public:
     
     // Get current CPU state
     void GetCPUState(uint8_t& a, uint8_t& x, uint8_t& y, uint8_t& s, uint8_t& p, uint16_t& pc);
+    std::string ConsumeIOBuffer();
     
 private:
     cpu* cpu_instance;
@@ -38,6 +39,8 @@ private:
     std::mutex sim_mutex;
     std::condition_variable sim_cv;
     std::condition_variable step_done_cv;
+
+    std::string io_buffer;
     
     void SimulationThread();
     void InitializeSystemC();

@@ -1,5 +1,4 @@
 #include "cpu_viewer.h"
-#include <stdio.h>
 
 CPUViewer::CPUViewer() 
     : reg_A(0), reg_X(0), reg_Y(0), reg_S(0xFF), reg_P(0x34), reg_PC(0),
@@ -17,6 +16,9 @@ void CPUViewer::Render() {
     ImGui::Spacing();
     ImGui::Separator();
     RenderFlags();
+    ImGui::Spacing();
+    ImGui::Separator();
+    RenderIOWindow();
     
     ImGui::EndChild();
 }
@@ -90,4 +92,35 @@ void CPUViewer::UpdateFlags(bool c, bool z, bool i, bool d, bool b, bool v, bool
     flag_B = b;
     flag_V = v;
     flag_N = n;
+}
+
+void CPUViewer::AppendIO(const std::string& text) {
+    if (text.empty()) {
+        return;
+    }
+    io_log.append(text);
+    if (io_log.size() > 4096) {
+        io_log.erase(0, io_log.size() - 4096);
+    }
+}
+
+void CPUViewer::ClearIO() {
+    io_log.clear();
+}
+
+void CPUViewer::RenderIOWindow() {
+    ImGui::Text("I/O Output");
+    ImGui::Separator();
+
+    ImGui::BeginChild("IOOutput", ImVec2(0, 120), true);
+    bool auto_scroll = ImGui::GetScrollY() >= ImGui::GetScrollMaxY();
+    if (io_log.empty()) {
+        ImGui::TextDisabled("<no output yet>");
+    } else {
+        ImGui::TextUnformatted(io_log.c_str());
+    }
+    if (auto_scroll) {
+        ImGui::SetScrollHereY(1.0f);
+    }
+    ImGui::EndChild();
 }
