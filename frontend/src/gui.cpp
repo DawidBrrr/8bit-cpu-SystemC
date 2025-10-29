@@ -83,35 +83,42 @@ int main(int, char**)
         
         // Control buttons
         bool isRunning = cpuController.IsRunning();
-        
+        bool stateNeedsUpdate = isRunning;
+
         if (isRunning) {
             if (ImGui::Button("Stop")) {
                 cpuController.Stop();
+                isRunning = false;
+                stateNeedsUpdate = true;
             }
         } else {
             if (ImGui::Button("Play")) {
                 cpuViewer.ClearIO();
                 cpuController.LoadProgram(editor.GetCode());
                 cpuController.Start();
+                isRunning = true;
+                stateNeedsUpdate = true;
             }
         }
-        
+
         ImGui::SameLine();
         if (ImGui::Button("Step")) {
             cpuController.Step();
+            stateNeedsUpdate = true;
         }
-        
+
         ImGui::SameLine();
         if (ImGui::Button("Reset")) {
             cpuViewer.ClearIO();
             cpuController.Reset();
+            stateNeedsUpdate = true;
         }
         
         ImGui::SameLine();
         ImGui::Text("  |  FPS: %.1f", io.Framerate);
         
         // Update CPU viewer with current state
-        if (isRunning || ImGui::IsKeyPressed(ImGuiKey_Space)) {
+        if (stateNeedsUpdate || ImGui::IsKeyPressed(ImGuiKey_Space)) {
             uint8_t a, x, y, s, p;
             uint16_t pc;
             cpuController.GetCPUState(a, x, y, s, p, pc);

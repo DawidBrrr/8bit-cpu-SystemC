@@ -150,7 +150,54 @@ void CPUController::Step() {
     }
 
     Stop();
-    RunCycles(1);
+    EnsureSimulationThread();
+
+    bool left_fetch = false;
+    {
+        std::lock_guard<std::mutex> lock(sim_mutex);
+        if (!cpu_instance) {
+            std::cerr << "CPU instance unavailable; cannot step." << std::endl;
+            return;
+        }
+        if (cpu_instance->halted) {
+            std::cout << "CPU Step" << std::endl;
+            return;
+        }
+        left_fetch = (cpu_instance->state != cpu::FETCH);
+    }
+
+    bool instruction_completed = false;
+    constexpr int kMaxInstructionCycles = 1024;
+
+    // Advance the simulator until the CPU returns to FETCH (start of next instruction).
+    for (int cycle = 0; cycle < kMaxInstructionCycles; ++cycle) {
+        RunCycles(1);
+
+        std::lock_guard<std::mutex> lock(sim_mutex);
+        if (!cpu_instance) {
+            break;
+        }
+
+        if (cpu_instance->halted) {
+            instruction_completed = true;
+            break;
+        }
+
+        cpu::cpu_state_t current_state = cpu_instance->state;
+        if (!left_fetch && current_state != cpu::FETCH) {
+            left_fetch = true;
+        }
+
+        if (left_fetch && current_state == cpu::FETCH) {
+            instruction_completed = true;
+            break;
+        }
+    }
+
+    if (!instruction_completed) {
+        std::cerr << "Warning: step did not complete within cycle budget." << std::endl;
+    }
+
     std::cout << "CPU Step" << std::endl;
 }
 
