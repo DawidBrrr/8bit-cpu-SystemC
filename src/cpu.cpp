@@ -166,6 +166,11 @@ void cpu::fetch_execute() {
 		pc.write(pc_val);
 		ir.write(ir_val);
 		stack_data_ready = false;
+		halted = false;
+		return;
+	}
+
+	if (halted) {
 		return;
 	}
 
@@ -191,7 +196,7 @@ void cpu::fetch_execute() {
 			// Check BRK instruction (halt)
 			if (ir_val == 0x00) {
 				std::cout << "CPU: BRK - simulation stopped" << std::endl;
-				//sc_stop(); //comment for running cpu_tb tests
+				halted = true;
 				return;
 			}
 			

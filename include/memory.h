@@ -4,7 +4,14 @@
 #include <fstream>
 #include <iomanip>
 #include <cstdio>
-using namespace std;
+#include <string>
+
+using std::cout;
+using std::endl;
+using std::ios;
+using std::ofstream;
+using std::string;
+using std::to_string;
 
 
 // 64KB RAM memory module with memory mapped I/O ports
@@ -16,6 +23,7 @@ SC_MODULE(memory) {
     sc_out<sc_uint<8>> r_data; // read data bus
 
     sc_uint<8> mem[65536]; // 64KB memory array
+    string io_buffer;      // Captured IO text for GUI
     
     // Static members for I/O file handling
     static ofstream io_output;
@@ -31,7 +39,7 @@ SC_MODULE(memory) {
                 // I/O PORT 0: Display value as decimal
                 string output = "PORT 0 (DEC): " + to_string((int)data);
                 cout << "*** OUTPUT " << output << " ***" << endl;
-                write_to_io_file(to_string((int)data));
+                append_to_io_output(to_string((int)data));
             }
             else if (address == 0xFF01) {
                 // I/O PORT 1: Display value as hex
@@ -41,13 +49,13 @@ SC_MODULE(memory) {
                 sprintf(hex_strw, "0x%02x", (int)data);
                 string output = hex_str;
                 cout << "*** OUTPUT " << output << " ***" << endl;
-                write_to_io_file(string(hex_strw));
+                append_to_io_output(string(hex_strw));
             }
             else if (address == 0xFF02) {
                 // I/O PORT 2: Display value as ASCII character
                 string output = "PORT 2 (CHR): '" + string(1, (char)data) + "'";
                 cout << "*** OUTPUT " << output << " ***" << endl;
-                write_to_io_file(string(1, (char)data));
+                append_to_io_output(string(1, (char)data));
             }
             else if (address == 0xFF03) {
                 // I/O PORT 3: Display value as binary
@@ -57,7 +65,7 @@ SC_MODULE(memory) {
                 }
                 string output = "PORT 3 (BIN): " + binary;
                 cout << "*** OUTPUT " << output << " ***" << endl;
-                write_to_io_file(binary);
+                append_to_io_output(binary);
             }
             else {
                 // Normal write to memory
@@ -73,7 +81,9 @@ SC_MODULE(memory) {
         }
     }
     
-    void write_to_io_file(const string& output) {
+    void append_to_io_output(const string& output) {
+        io_buffer += output;
+
         if (!io_file_opened) {
             io_output.open("../output/io_output.txt", ios::out);
             io_file_opened = true;
@@ -83,15 +93,11 @@ SC_MODULE(memory) {
                 io_output << "=====================================" << endl;
             }
         }
-        
+
         if (io_output.is_open()) {
-            // Add timestamp (simplified for debugging)
-            static int counter = 0;
-            //io_output << "[" << setfill('0') << setw(4) << ++counter << "] " << output << endl;
             io_output << output;
-            io_output.flush(); // Immediate write
+            io_output.flush();
         }
-        
     }
 
     SC_CTOR(memory) {
